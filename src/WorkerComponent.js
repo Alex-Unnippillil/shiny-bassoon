@@ -1,13 +1,13 @@
-const React = require('react');
+import React, { useRef, useEffect } from 'react';
 
-function WorkerComponent() {
-  const workerRef = React.useRef(null);
+export default function WorkerComponent() {
+  const workerRef = useRef(null);
 
   if (!workerRef.current) {
-    workerRef.current = new Worker('./worker.js');
+    workerRef.current = new Worker(new URL('./worker.js', import.meta.url));
   }
 
-  React.useEffect(() => {
+  useEffect(() => {
     const worker = workerRef.current;
     return () => {
       if (worker) {
@@ -18,5 +18,3 @@ function WorkerComponent() {
 
   return React.createElement('div', null, 'Worker Component');
 }
-
-module.exports = WorkerComponent;
