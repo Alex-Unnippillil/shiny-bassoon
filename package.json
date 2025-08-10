@@ -4,6 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "lint": "echo \"linting\"",
     "test": "jest",
     "dev": "vite",
     "e2e": "playwright test"
