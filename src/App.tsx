@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { Box, Button } from '@mui/material';
+import { Box, Button, TextField, Typography } from '@mui/material';
 import { useBoardState, useBoardActions } from './boardStore';
 import type { Piece, WorkerMessage } from './types';
 
@@ -10,17 +10,37 @@ function pieceSymbol(piece: Piece | undefined): string | null {
   if (!piece) return null;
   const symbols: Record<string, string> = {
     wP: '♙',
+    wR: '♖',
+    wN: '♘',
+    wB: '♗',
+    wQ: '♕',
+    wK: '♔',
     bP: '♟︎',
+    bR: '♜',
+    bN: '♞',
+    bB: '♝',
+    bQ: '♛',
+    bK: '♚',
   };
   return symbols[piece.color + piece.type];
 }
 
 export default function App() {
-  const { board, orientation } = useBoardState();
-  const { playerMove, aiMove, flipOrientation } = useBoardActions();
+  const { board, orientation, history } = useBoardState();
+  const {
+    playerMove,
+    aiMove,
+    flipOrientation,
+    undo,
+    reset,
+    importFEN,
+    exportFEN,
+    exportPGN,
+  } = useBoardActions();
   const [selected, setSelected] = useState<string | null>(null);
   const squareRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const workerRef = useRef<Worker | null>(null);
+  const [fenInput, setFenInput] = useState('');
 
   if (!workerRef.current) {
     workerRef.current = new Worker(new URL('./aiWorker.ts', import.meta.url));
@@ -117,7 +137,9 @@ export default function App() {
                 squareRefs.current[sq] = el as HTMLButtonElement | null;
               }}
               tabIndex={0}
-              aria-label={`square ${sq}${piece ? ' with ' + (piece.color === 'w' ? 'white' : 'black') + ' pawn' : ''}`}
+              aria-label={`square ${sq}${
+                piece ? ' with ' + (piece.color === 'w' ? 'white' : 'black') + ' ' + piece.type : ''
+              }`}
               onClick={() => handleSquareClick(sq)}
               onKeyDown={e => handleKeyDown(sq, e)}
               sx={{
@@ -136,13 +158,57 @@ export default function App() {
           );
         })}
       </Box>
-      <Button
-        variant="contained"
-        onClick={flipOrientation}
-        aria-label="Toggle board orientation"
-      >
-        Flip Board
-      </Button>
+      <Box display="flex" gap={1}>
+        <Button variant="contained" onClick={flipOrientation} aria-label="Toggle board orientation">
+          Flip Board
+        </Button>
+        <Button variant="contained" onClick={undo} aria-label="Undo last move">
+          Undo
+        </Button>
+        <Button variant="contained" onClick={reset} aria-label="Reset game">
+          Reset
+        </Button>
+      </Box>
+      <Box display="flex" flexDirection="column" alignItems="center" gap={1}>
+        <Typography variant="h6">Move History</Typography>
+        <Box component="ol" sx={{ maxHeight: 100, overflowY: 'auto', m: 0, p: 0 }}>
+          {history.map((m, i) => (
+            <li key={i}>{m}</li>
+          ))}
+        </Box>
+      </Box>
+      <Box display="flex" gap={1} alignItems="center">
+        <TextField
+          size="small"
+          label="FEN"
+          value={fenInput}
+          onChange={(e) => setFenInput(e.target.value)}
+        />
+        <Button variant="outlined" onClick={() => fenInput && importFEN(fenInput)}>
+          Load FEN
+        </Button>
+        <Button
+          variant="outlined"
+          onClick={() => navigator.clipboard?.writeText(exportFEN())}
+        >
+          Copy FEN
+        </Button>
+        <Button
+          variant="outlined"
+          onClick={() => {
+            const pgn = exportPGN();
+            const blob = new Blob([pgn], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'game.pgn';
+            a.click();
+            URL.revokeObjectURL(url);
+          }}
+        >
+          Download PGN
+        </Button>
+      </Box>
     </Box>
   );
 }
