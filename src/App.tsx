@@ -2,6 +2,7 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Box, Button } from '@mui/material';
 import { useBoardState, useBoardActions } from './boardStore';
 import type { Piece, WorkerMessage } from './types';
+import { workerUrl } from './workerUrl';
 
 const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
 const ranks = [1, 2, 3, 4, 5, 6, 7, 8];
@@ -21,21 +22,25 @@ export default function App() {
   const [selected, setSelected] = useState<string | null>(null);
   const squareRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const workerRef = useRef<Worker | null>(null);
-
-  if (!workerRef.current) {
-    workerRef.current = new Worker(new URL('./aiWorker.ts', import.meta.url));
-  }
+  const aiMoveRef = useRef(aiMove);
 
   useEffect(() => {
-    const worker = workerRef.current!;
+    aiMoveRef.current = aiMove;
+  }, [aiMove]);
+  useEffect(() => {
+    workerRef.current = new Worker(workerUrl);
+    const worker = workerRef.current;
     worker.onmessage = (event: MessageEvent<WorkerMessage>) => {
       const { type, from, to } = event.data || {};
       if (type === 'AI_MOVE') {
-        aiMove(from, to);
+        aiMoveRef.current(from, to);
       }
     };
-    return () => worker.terminate();
-  }, [aiMove]);
+    return () => {
+      worker.terminate();
+      workerRef.current = null;
+    };
+  }, []);
 
   const orderedSquares = useMemo(() => {
     const fileOrder = orientation === 'white' ? files : [...files].reverse();
@@ -51,7 +56,9 @@ export default function App() {
 
   const handleMove = (from: string, to: string) => {
     playerMove(from, to);
-    workerRef.current?.postMessage({ type: 'PLAYER_MOVE', from, to } satisfies WorkerMessage);
+    if (workerRef.current) {
+      workerRef.current.postMessage({ type: 'PLAYER_MOVE', from, to } satisfies WorkerMessage);
+    }
   };
 
   const handleSquareClick = (square: string) => {
