@@ -22,7 +22,10 @@ export default function App() {
   const workerRef = useRef(null);
 
   if (!workerRef.current) {
-    workerRef.current = new Worker(new URL('./aiWorker.js', import.meta.url));
+    workerRef.current = new Worker(
+      new URL('./workers/engineWorker.ts', import.meta.url),
+      { type: 'module' }
+    );
   }
 
   useEffect(() => {

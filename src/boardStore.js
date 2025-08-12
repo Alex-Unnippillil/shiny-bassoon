@@ -1,4 +1,4 @@
-import React, { createContext, useReducer, useContext, useMemo } from 'react';
+import { createContext, useReducer, useContext, useMemo } from 'react';
 
 function initialBoard() {
   return {

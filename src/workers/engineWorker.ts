@@ -1,28 +1,28 @@
-interface MoveMessage {
-  type: 'move';
-  fen: string;
+interface PlayerMoveMessage {
+  type: 'PLAYER_MOVE';
+  from: string;
+  to: string;
 }
 
 interface AIMoveMessage {
-  type: 'aiMove';
-  move: string;
+  type: 'AI_MOVE';
+  from: string;
+  to: string;
 }
 
-// Extremely lightweight engine: respond to common opening with e7e5
-function computeAIMove(fen: string): string {
-  // If we recognise the starting position after 1.e4, respond with 1...e5
-  if (fen.startsWith('rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b')) {
-    return 'e7e5';
-  }
-  // default reply
-  return 'e7e5';
+// Extremely lightweight engine: respond to 1.e4 with 1...e5
+function computeAIMove(_from: string, _to: string): { from: string; to: string } {
+  // For now ignore the player's move and always play e7e5
+  return { from: 'e7', to: 'e5' };
 }
 
-self.onmessage = function (event: MessageEvent<MoveMessage>) {
+self.onmessage = function (event: MessageEvent<PlayerMoveMessage>) {
   const data = event.data;
-  if (data && data.type === 'move') {
-    const move = computeAIMove(data.fen);
-    const message: AIMoveMessage = { type: 'aiMove', move };
-    (self as unknown as Worker).postMessage(message);
+  if (data && data.type === 'PLAYER_MOVE') {
+    const move = computeAIMove(data.from, data.to);
+    const message: AIMoveMessage = { type: 'AI_MOVE', ...move };
+    setTimeout(() => {
+      (self as unknown as Worker).postMessage(message);
+    }, 500);
   }
 };
