@@ -15,7 +15,7 @@ function pieceSymbol(piece: Piece | undefined): string | null {
   return symbols[piece.color + piece.type];
 }
 
-export default function App() {
+export default function App(): JSX.Element {
   const { board, orientation } = useBoardState();
   const { playerMove, aiMove, flipOrientation } = useBoardActions();
   const [selected, setSelected] = useState<string | null>(null);
@@ -51,13 +51,13 @@ export default function App() {
     return squares;
   }, [orientation]);
 
-  const handleMove = (from: string, to: string) => {
+  const handleMove = (from: string, to: string): void => {
     playerMove(from, to);
     workerRef.current?.postMessage({ type: 'PLAYER_MOVE', from, to } satisfies WorkerMessage);
     setAnnouncement(`Player moved ${from} to ${to}`);
   };
 
-  const handleSquareClick = (square: string) => {
+  const handleSquareClick = (square: string): void => {
     if (selected) {
       handleMove(selected, square);
       setSelected(null);
@@ -66,7 +66,10 @@ export default function App() {
     }
   };
 
-  const handleKeyDown = (square: string, e: React.KeyboardEvent<HTMLButtonElement>) => {
+  const handleKeyDown = (
+    square: string,
+    e: React.KeyboardEvent<HTMLButtonElement>,
+  ): void => {
     const index = orderedSquares.indexOf(square);
     let target: string | undefined;
     switch (e.key) {

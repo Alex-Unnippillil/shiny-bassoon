@@ -75,7 +75,7 @@ const GameContext = createContext<{
   dispatch: React.Dispatch<Action>;
 } | null>(null);
 
-export function GameProvider({ children }: { children: React.ReactNode }) {
+export function GameProvider({ children }: { children: React.ReactNode }): JSX.Element {
   const [state, dispatch] = useReducer(reducer, initialState);
   return (
     <GameContext.Provider value={{ state, dispatch }}>
@@ -84,7 +84,14 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function useGameStore() {
+interface GameStore extends State {
+  playerMove: (from: string, to: string) => void;
+  aiMove: (from: string, to: string) => void;
+  undo: () => void;
+  reset: () => void;
+}
+
+export function useGameStore(): GameStore {
   const context = useContext(GameContext);
   if (!context) {
     throw new Error('useGameStore must be used within GameProvider');
