@@ -9,8 +9,10 @@ import type { Board } from './types';
 
 function initialBoard(): Board {
   return {
-    e2: { type: 'P', color: 'w' },
+    a8: { type: 'K', color: 'b' },
     e7: { type: 'P', color: 'b' },
+    e2: { type: 'P', color: 'w' },
+    h1: { type: 'K', color: 'w' },
   };
 }
 

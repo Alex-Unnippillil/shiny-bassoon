@@ -1,7 +1,9 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { Box, Button } from '@mui/material';
+import { Box, Button, Typography } from '@mui/material';
+import { Chess } from 'chess.js';
 import { useBoardState, useBoardActions } from './boardStore';
-import type { Piece, WorkerMessage } from './types';
+import type { Piece, WorkerRequest, WorkerResponse } from './types';
+import { INITIAL_FEN } from './constants';
 
 const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
 const ranks = [1, 2, 3, 4, 5, 6, 7, 8];
@@ -11,6 +13,8 @@ function pieceSymbol(piece: Piece | undefined): string | null {
   const symbols: Record<string, string> = {
     wP: '♙',
     bP: '♟︎',
+    wK: '♔',
+    bK: '♚',
   };
   return symbols[piece.color + piece.type];
 }
@@ -19,19 +23,36 @@ export default function App() {
   const { board, orientation } = useBoardState();
   const { playerMove, aiMove, flipOrientation } = useBoardActions();
   const [selected, setSelected] = useState<string | null>(null);
+  const [status, setStatus] = useState('');
   const squareRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const workerRef = useRef<Worker | null>(null);
+  const gameRef = useRef(new Chess(INITIAL_FEN));
 
   if (!workerRef.current) {
     workerRef.current = new Worker(new URL('./aiWorker.ts', import.meta.url));
+    workerRef.current.postMessage({ type: 'INIT', fen: INITIAL_FEN } satisfies WorkerRequest);
   }
 
   useEffect(() => {
     const worker = workerRef.current!;
-    worker.onmessage = (event: MessageEvent<WorkerMessage>) => {
-      const { type, from, to } = event.data || {};
-      if (type === 'AI_MOVE') {
-        aiMove(from, to);
+    worker.onmessage = (event: MessageEvent<WorkerResponse>) => {
+      const msg = event.data;
+      switch (msg.type) {
+        case 'AI_MOVE':
+          aiMove(msg.from, msg.to);
+          gameRef.current.move({ from: msg.from, to: msg.to, promotion: 'q' });
+          break;
+        case 'ERROR':
+          setStatus(msg.message);
+          break;
+        case 'CHECKMATE':
+          setStatus(`Checkmate! ${msg.winner === 'w' ? 'White' : 'Black'} wins`);
+          break;
+        case 'STALEMATE':
+          setStatus('Stalemate');
+          break;
+        default:
+          break;
       }
     };
     return () => worker.terminate();
@@ -50,8 +71,18 @@ export default function App() {
   }, [orientation]);
 
   const handleMove = (from: string, to: string) => {
+    const move = gameRef.current.move({ from, to, promotion: 'q' });
+    if (!move) {
+      setStatus('Illegal move');
+      return;
+    }
+    setStatus('');
     playerMove(from, to);
-    workerRef.current?.postMessage({ type: 'PLAYER_MOVE', from, to } satisfies WorkerMessage);
+    workerRef.current?.postMessage({
+      type: 'PLAYER_MOVE',
+      from,
+      to,
+    } satisfies WorkerRequest);
   };
 
   const handleSquareClick = (square: string) => {
@@ -117,7 +148,7 @@ export default function App() {
                 squareRefs.current[sq] = el as HTMLButtonElement | null;
               }}
               tabIndex={0}
-              aria-label={`square ${sq}${piece ? ' with ' + (piece.color === 'w' ? 'white' : 'black') + ' pawn' : ''}`}
+              aria-label={`square ${sq}${piece ? ' with ' + (piece.color === 'w' ? 'white' : 'black') + ' ' + (piece.type === 'P' ? 'pawn' : 'king') : ''}`}
               onClick={() => handleSquareClick(sq)}
               onKeyDown={e => handleKeyDown(sq, e)}
               sx={{
@@ -143,6 +174,7 @@ export default function App() {
       >
         Flip Board
       </Button>
+      {status && <Typography role="status">{status}</Typography>}
     </Box>
   );
 }
