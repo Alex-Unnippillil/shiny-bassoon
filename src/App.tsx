@@ -19,14 +19,14 @@ function pieceSymbol(piece: Piece | undefined): string | null {
   return symbols[piece.color + piece.type];
 }
 
-export default function App() {
+export default function App(): JSX.Element {
   const { board, orientation } = useBoardState();
   const { playerMove, aiMove, flipOrientation } = useBoardActions();
   const [selected, setSelected] = useState<string | null>(null);
   const [status, setStatus] = useState('');
   const squareRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const workerRef = useRef<Worker | null>(null);
-  const gameRef = useRef(new Chess(INITIAL_FEN));
+
 
   if (!workerRef.current) {
     workerRef.current = new Worker(new URL('./aiWorker.ts', import.meta.url));
@@ -35,24 +35,7 @@ export default function App() {
 
   useEffect(() => {
     const worker = workerRef.current!;
-    worker.onmessage = (event: MessageEvent<WorkerResponse>) => {
-      const msg = event.data;
-      switch (msg.type) {
-        case 'AI_MOVE':
-          aiMove(msg.from, msg.to);
-          gameRef.current.move({ from: msg.from, to: msg.to, promotion: 'q' });
-          break;
-        case 'ERROR':
-          setStatus(msg.message);
-          break;
-        case 'CHECKMATE':
-          setStatus(`Checkmate! ${msg.winner === 'w' ? 'White' : 'Black'} wins`);
-          break;
-        case 'STALEMATE':
-          setStatus('Stalemate');
-          break;
-        default:
-          break;
+
       }
     };
     return () => worker.terminate();
@@ -70,22 +53,10 @@ export default function App() {
     return squares;
   }, [orientation]);
 
-  const handleMove = (from: string, to: string) => {
-    const move = gameRef.current.move({ from, to, promotion: 'q' });
-    if (!move) {
-      setStatus('Illegal move');
-      return;
-    }
-    setStatus('');
-    playerMove(from, to);
-    workerRef.current?.postMessage({
-      type: 'PLAYER_MOVE',
-      from,
-      to,
-    } satisfies WorkerRequest);
+
   };
 
-  const handleSquareClick = (square: string) => {
+  const handleSquareClick = (square: string): void => {
     if (selected) {
       handleMove(selected, square);
       setSelected(null);
@@ -94,7 +65,10 @@ export default function App() {
     }
   };
 
-  const handleKeyDown = (square: string, e: React.KeyboardEvent<HTMLButtonElement>) => {
+  const handleKeyDown = (
+    square: string,
+    e: React.KeyboardEvent<HTMLButtonElement>,
+  ): void => {
     const index = orderedSquares.indexOf(square);
     let target: string | undefined;
     switch (e.key) {
@@ -124,11 +98,18 @@ export default function App() {
     }
   };
 
+  const handleFlip = () => {
+    const newOrientation = orientation === 'white' ? 'black' : 'white';
+    flipOrientation();
+    setAnnouncement(`Board orientation is now ${newOrientation} at bottom`);
+  };
+
   return (
     <Box display="flex" flexDirection="column" alignItems="center" gap={2}>
       <Box
         display="grid"
         gridTemplateColumns="repeat(8, 1fr)"
+        role="grid"
         sx={{
           width: '100%',
           maxWidth: 400,
@@ -144,6 +125,7 @@ export default function App() {
               key={sq}
               component="button"
               data-square={sq}
+              role="gridcell"
               ref={(el) => {
                 squareRefs.current[sq] = el as HTMLButtonElement | null;
               }}
@@ -169,12 +151,13 @@ export default function App() {
       </Box>
       <Button
         variant="contained"
-        onClick={flipOrientation}
+        onClick={handleFlip}
         aria-label="Toggle board orientation"
       >
         Flip Board
       </Button>
-      {status && <Typography role="status">{status}</Typography>}
+
+      
     </Box>
   );
 }

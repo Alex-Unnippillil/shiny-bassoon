@@ -44,6 +44,6 @@
     "jest-environment-jsdom": "^30.0.5",
     "prettier": "^3.6.2",
     "typescript": "^5.6.3",
-    "vite": "^7.1.1"
+
   }
 }

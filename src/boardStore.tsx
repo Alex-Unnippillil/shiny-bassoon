@@ -61,7 +61,7 @@ const BoardContext = createContext<
   { state: BoardState; actions: BoardActions } | null
 >(null);
 
-export function BoardProvider({ children }: { children: ReactNode }) {
+export function BoardProvider({ children }: { children: ReactNode }): JSX.Element {
   const [state, dispatch] = useReducer(reducer, {
     board: initialBoard(),
     orientation: 'white' as Orientation,
