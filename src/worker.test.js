@@ -1,66 +1,40 @@
-const fs = require('fs');
-const path = require('path');
-const vm = require('vm');
-
-class MockWorker {
-  constructor(url) {
-    const code = fs.readFileSync(path.resolve(__dirname, url), 'utf8');
-    const sandbox = {
-      self: {
-        postMessage: (data) => {
-          if (this.onmessage) {
-            this.onmessage({ data });
-          }
-        },
-        onmessage: null,
-      },
-    };
-    vm.runInNewContext(code, sandbox);
-    this._onmessage = sandbox.self.onmessage;
-    this.onmessage = null;
-  }
-
-  postMessage(data) {
-    if (this._onmessage) {
-      this._onmessage({ data });
-    }
-  }
-
-  terminate() {}
-}
+import { handleMessage } from "./worker";
 
 function runWorker(input) {
-  return new Promise((resolve) => {
-    const OriginalWorker = global.Worker;
-    global.Worker = MockWorker;
-    const worker = new Worker('./worker.js');
-    worker.onmessage = (event) => {
-      resolve(event.data);
-      global.Worker = OriginalWorker;
-    };
-    worker.postMessage(input);
-  });
+  return handleMessage({ data: input });
 }
 
-test('pawn moves two squares from starting rank', async () => {
-  const result = await runWorker({ board: { e7: { type: 'P', color: 'b' } }, color: 'b' });
-  expect(result).toEqual({ move: { from: 'e7', to: 'e5' } });
+test("pawn moves two squares from starting rank", () => {
+  const result = runWorker({ board: { e7: { type: "P", color: "b" } }, color: "b" });
+  expect(result).toEqual({ move: { from: "e7", to: "e5" } });
 });
 
-test('pawn moves one square when double step is blocked', async () => {
+test("pawn moves one square when double step is blocked", () => {
   const board = {
-    e7: { type: 'P', color: 'b' },
-    e5: { type: 'P', color: 'w' },
+    e7: { type: "P", color: "b" },
+    e5: { type: "P", color: "w" },
   };
-  const result = await runWorker({ board, color: 'b' });
-  expect(result).toEqual({ move: { from: 'e7', to: 'e6' } });
+  const result = runWorker({ board, color: "b" });
+  expect(result).toEqual({ move: { from: "e7", to: "e6" } });
 });
 
-test('pawn captures diagonally', async () => {
+test("pawn captures diagonally", () => {
   const board = {
-    e4: { type: 'P', color: 'w' },
-    d5: { type: 'P', color: 'b' },
+    e4: { type: "P", color: "w" },
+    d5: { type: "P", color: "b" },
   };
-  const result = await runWorker({ board, color: 'w' });
-  expect(result).toEqual({ move: { from: 'e4', to: 'd5' } });
+  const result = runWorker({ board, color: "w" });
+  expect(result).toEqual({ move: { from: "e4", to: "d5" } });
 });
+
+test("returns error for invalid input", () => {
+  const result = runWorker({});
+  expect(result).toEqual({ error: "Invalid input" });
+});
+
+test("returns error when no legal moves", () => {
+  const board = { e4: { type: "P", color: "w" } };
+  const result = runWorker({ board, color: "b" });
+  expect(result).toEqual({ error: "No legal moves" });
+});
+

@@ -2,8 +2,8 @@ function generatePawnMoves(from, board, color) {
   const moves = [];
   const file = from.charCodeAt(0);
   const rank = parseInt(from[1], 10);
-  const forward = color === 'w' ? 1 : -1;
-  const startRank = color === 'w' ? 2 : 7;
+  const forward = color === "w" ? 1 : -1;
+  const startRank = color === "w" ? 2 : 7;
   const targetRank = rank + forward;
 
   if (targetRank >= 1 && targetRank <= 8) {
@@ -43,7 +43,7 @@ function choosePawnMove(board, color) {
   const squares = Object.keys(board).sort();
   for (const sq of squares) {
     const piece = board[sq];
-    if (piece.type === 'P' && piece.color === color) {
+    if (piece.type === "P" && piece.color === color) {
       const moves = generatePawnMoves(sq, board, color);
       if (moves.length) return moves[0];
     }
@@ -51,16 +51,23 @@ function choosePawnMove(board, color) {
   return null;
 }
 
-self.onmessage = (event) => {
+function handleMessage(event) {
   const { board, color } = event.data || {};
   if (!board || !color) {
-    self.postMessage({ error: 'Invalid input' });
-    return;
+    return { error: "Invalid input" };
   }
   const move = choosePawnMove(board, color);
   if (move) {
-    self.postMessage({ move });
-  } else {
-    self.postMessage({ error: 'No legal moves' });
+    return { move };
   }
-};
+  return { error: "No legal moves" };
+}
+
+if (typeof self !== "undefined") {
+  self.onmessage = (event) => {
+    const result = handleMessage(event);
+    self.postMessage(result);
+  };
+}
+
+module.exports = { generatePawnMoves, choosePawnMove, handleMessage };
