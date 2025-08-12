@@ -1,6 +1,6 @@
-const fs = require('fs');
-const path = require('path');
-const vm = require('vm');
+import fs from 'fs';
+import path from 'path';
+import vm from 'vm';
 
 class MockWorker {
   constructor(url) {

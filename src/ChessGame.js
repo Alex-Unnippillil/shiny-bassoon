@@ -1,5 +1,5 @@
-const React = require('react');
-const useGameStore = require('./useGameStore');
+import React from 'react';
+import useGameStore from './useGameStore.js';
 
 function ChessGame() {
   const { exportPGN, importFEN } = useGameStore();
@@ -44,4 +44,4 @@ function ChessGame() {
   );
 }
 
-module.exports = ChessGame;
+export default ChessGame;

@@ -1,12 +1,12 @@
 const INITIAL_BOARD = Array(9).fill(null);
 
-function createGameStore(worker) {
+export function createGameStore(worker?: { postMessage: (msg: any) => void }) {
   const aiWorker = worker || { postMessage: () => {} };
   let board = [...INITIAL_BOARD];
-  let history = [ [...board] ];
+  let history = [[...board]];
   let currentPlayer = 'X';
 
-  function makeMove(index) {
+  function makeMove(index: number) {
     if (board[index] !== null) return;
     board[index] = currentPlayer;
     history.push([...board]);
@@ -26,7 +26,7 @@ function createGameStore(worker) {
 
   function resetGame() {
     board = [...INITIAL_BOARD];
-    history = [ [...board] ];
+    history = [[...board]];
     currentPlayer = 'X';
   }
 
@@ -46,4 +46,4 @@ function createGameStore(worker) {
   };
 }
 
-module.exports = { createGameStore, useGameStore: createGameStore() };
+export const useGameStore = createGameStore();

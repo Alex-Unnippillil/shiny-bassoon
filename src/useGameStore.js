@@ -1,4 +1,4 @@
-const React = require('react');
+import React from 'react';
 
 const FEN_KEY = 'game_fen';
 const HISTORY_KEY = 'game_history';
@@ -60,4 +60,4 @@ function useGameStore() {
   return { fen, setFen, history, addMove, exportPGN, importFEN };
 }
 
-module.exports = useGameStore;
+export default useGameStore;
