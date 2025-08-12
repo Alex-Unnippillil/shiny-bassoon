@@ -1,44 +1,18 @@
-const fs = require('fs');
 const path = require('path');
-const vm = require('vm');
-
-class MockWorker {
-  constructor(url) {
-    const code = fs.readFileSync(path.resolve(__dirname, url), 'utf8');
-    const sandbox = {
-      self: {
-        postMessage: (data) => {
-          if (this.onmessage) {
-            this.onmessage({ data });
-          }
-        },
-        onmessage: null,
-      },
-    };
-    vm.runInNewContext(code, sandbox);
-    this._onmessage = sandbox.self.onmessage;
-    this.onmessage = null;
-  }
-
-  postMessage(data) {
-    if (this._onmessage) {
-      this._onmessage({ data });
-    }
-  }
-
-  terminate() {}
-}
 
 function runWorker(input) {
   return new Promise((resolve) => {
-    const OriginalWorker = global.Worker;
-    global.Worker = MockWorker;
-    const worker = new Worker('./worker.js');
-    worker.onmessage = (event) => {
-      resolve(event.data);
-      global.Worker = OriginalWorker;
+    const workerPath = path.resolve(__dirname, '../worker.js');
+    const originalSelf = global.self;
+    const mockSelf = {
+      onmessage: null,
+      postMessage: (data) => resolve(data),
     };
-    worker.postMessage(input);
+    global.self = mockSelf;
+    jest.resetModules();
+    require(workerPath);
+    mockSelf.onmessage({ data: input });
+    global.self = originalSelf;
   });
 }
 
