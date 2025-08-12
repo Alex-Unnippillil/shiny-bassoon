@@ -1,66 +1,77 @@
-import fs from 'fs';
 import path from 'path';
-import vm from 'vm';
+import { pathToFileURL } from 'url';
 
-class MockWorker {
-  constructor(url) {
-    const code = fs.readFileSync(path.resolve(__dirname, url), 'utf8');
-    const sandbox = {
-      self: {
-        postMessage: (data) => {
-          if (this.onmessage) {
-            this.onmessage({ data });
-          }
-        },
-        onmessage: null,
-      },
-    };
-    vm.runInNewContext(code, sandbox);
-    this._onmessage = sandbox.self.onmessage;
-    this.onmessage = null;
-  }
+let handler = null;
 
-  postMessage(data) {
-    if (this._onmessage) {
-      this._onmessage({ data });
-    }
-  }
-
-  terminate() {}
+async function loadWorker() {
+  if (handler) return handler;
+  const bootstrap = { postMessage: () => {}, onmessage: null };
+  global.self = bootstrap;
+  await import(pathToFileURL(path.resolve(__dirname, './worker.js')));
+  handler = bootstrap.onmessage;
+  delete global.self;
+  return handler;
 }
 
-function runWorker(input) {
+async function runWorker(input) {
+  const workerHandler = await loadWorker();
   return new Promise((resolve) => {
-    const OriginalWorker = global.Worker;
-    global.Worker = MockWorker;
-    const worker = new Worker('./worker.js');
-    worker.onmessage = (event) => {
-      resolve(event.data);
-      global.Worker = OriginalWorker;
+    const tempSelf = {
+      postMessage: (data) => {
+        resolve(data);
+      },
+      onmessage: null,
     };
-    worker.postMessage(input);
+    global.self = tempSelf;
+    workerHandler({ data: input });
+    delete global.self;
   });
 }
 
-test('pawn moves two squares from starting rank', async () => {
-  const result = await runWorker({ board: { e7: { type: 'P', color: 'b' } }, color: 'b' });
-  expect(result).toEqual({ move: { from: 'e7', to: 'e5' } });
-});
-
-test('pawn moves one square when double step is blocked', async () => {
+test('generates ai move and returns status', async () => {
   const board = {
+    e2: { type: 'P', color: 'w' },
     e7: { type: 'P', color: 'b' },
-    e5: { type: 'P', color: 'w' },
+    e1: { type: 'K', color: 'w' },
+    e8: { type: 'K', color: 'b' },
   };
-  const result = await runWorker({ board, color: 'b' });
-  expect(result).toEqual({ move: { from: 'e7', to: 'e6' } });
+  const result = await runWorker({ board, move: { from: 'e2', to: 'e4' }, playerColor: 'w' });
+  expect(result.playerMove).toEqual({ from: 'e2', to: 'e4' });
+  expect(result.aiMove).toBeDefined();
+  expect(result.status).toBe('ongoing');
+  expect(Array.isArray(result.legalMoves)).toBe(true);
 });
 
-test('pawn captures diagonally', async () => {
+test('rejects illegal moves', async () => {
   const board = {
-    e4: { type: 'P', color: 'w' },
-    d5: { type: 'P', color: 'b' },
+    e2: { type: 'P', color: 'w' },
+    e3: { type: 'P', color: 'b' },
+    e1: { type: 'K', color: 'w' },
+    e8: { type: 'K', color: 'b' },
   };
-  const result = await runWorker({ board, color: 'w' });
-  expect(result).toEqual({ move: { from: 'e4', to: 'd5' } });
+  const result = await runWorker({ board, move: { from: 'e2', to: 'e4' }, playerColor: 'w' });
+  expect(result.error).toBe('Illegal move');
+  expect(Array.isArray(result.legalMoves)).toBe(true);
+});
+
+test('detects checkmate', async () => {
+  const board = {
+    h8: { type: 'K', color: 'b' },
+    f6: { type: 'K', color: 'w' },
+    g6: { type: 'Q', color: 'w' },
+  };
+  const result = await runWorker({ board, move: { from: 'g6', to: 'g7' }, playerColor: 'w' });
+  expect(result.status).toBe('checkmate');
+  expect(result.aiMove).toBeUndefined();
+});
+
+test('detects stalemate', async () => {
+  const board = {
+    h8: { type: 'K', color: 'b' },
+    f7: { type: 'K', color: 'w' },
+    f6: { type: 'Q', color: 'w' },
+  };
+  const result = await runWorker({ board, move: { from: 'f6', to: 'g6' }, playerColor: 'w' });
+  expect(result.status).toBe('stalemate');
+  expect(result.aiMove).toBeUndefined();
 });

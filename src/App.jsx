@@ -16,25 +16,38 @@ function pieceSymbol(piece) {
 
 export default function App() {
   const { board, orientation } = useBoardState();
-  const { playerMove, aiMove, flipOrientation } = useBoardActions();
+  const { playerMove: applyPlayerMove, aiMove: applyAiMove, flipOrientation } = useBoardActions();
   const [selected, setSelected] = useState(null);
+  const [error, setError] = useState(null);
+  const [status, setStatus] = useState('ongoing');
   const squareRefs = useRef({});
   const workerRef = useRef(null);
 
   if (!workerRef.current) {
-    workerRef.current = new Worker(new URL('./aiWorker.js', import.meta.url));
+    workerRef.current = new Worker(new URL('./worker.js', import.meta.url));
   }
 
   useEffect(() => {
     const worker = workerRef.current;
     worker.onmessage = (event) => {
-      const { type, from, to } = event.data || {};
-      if (type === 'AI_MOVE') {
-        aiMove(from, to);
+      const { error, playerMove, aiMove, status } = event.data || {};
+      if (error) {
+        setError(error);
+        return;
+      }
+      setError(null);
+      if (playerMove) {
+        applyPlayerMove(playerMove.from, playerMove.to);
+      }
+      if (aiMove) {
+        applyAiMove(aiMove.from, aiMove.to);
+      }
+      if (status) {
+        setStatus(status);
       }
     };
     return () => worker.terminate();
-  }, [aiMove]);
+  }, [applyPlayerMove, applyAiMove]);
 
   const orderedSquares = useMemo(() => {
     const fileOrder = orientation === 'white' ? files : [...files].reverse();
@@ -49,8 +62,11 @@ export default function App() {
   }, [orientation]);
 
   const handleMove = (from, to) => {
-    playerMove(from, to);
-    workerRef.current.postMessage({ type: 'PLAYER_MOVE', from, to });
+    workerRef.current.postMessage({
+      board,
+      move: { from, to },
+      playerColor: 'w'
+    });
   };
 
   const handleSquareClick = square => {
@@ -140,6 +156,14 @@ export default function App() {
       >
         Flip Board
       </Button>
+      {error && (
+        <Box color="error.main" role="alert">
+          {error}
+        </Box>
+      )}
+      {status !== 'ongoing' && !error && (
+        <Box role="status">{status}</Box>
+      )}
     </Box>
   );
 }
