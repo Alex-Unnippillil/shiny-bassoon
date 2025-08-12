@@ -21,20 +21,20 @@ export default function App() {
   const squareRefs = useRef({});
   const workerRef = useRef(null);
 
-  if (!workerRef.current) {
-    workerRef.current = new Worker(new URL('./aiWorker.js', import.meta.url));
-  }
-
   useEffect(() => {
-    const worker = workerRef.current;
+    const worker = new Worker(new URL('./aiWorker.js', import.meta.url));
+    workerRef.current = worker;
     worker.onmessage = (event) => {
       const { type, from, to } = event.data || {};
       if (type === 'AI_MOVE') {
         aiMove(from, to);
       }
     };
-    return () => worker.terminate();
-  }, [aiMove]);
+    return () => {
+      worker.terminate();
+      workerRef.current = null;
+    };
+  }, []);
 
   const orderedSquares = useMemo(() => {
     const fileOrder = orientation === 'white' ? files : [...files].reverse();
@@ -50,7 +50,9 @@ export default function App() {
 
   const handleMove = (from, to) => {
     playerMove(from, to);
-    workerRef.current.postMessage({ type: 'PLAYER_MOVE', from, to });
+    if (workerRef.current) {
+      workerRef.current.postMessage({ type: 'PLAYER_MOVE', from, to });
+    }
   };
 
   const handleSquareClick = square => {
