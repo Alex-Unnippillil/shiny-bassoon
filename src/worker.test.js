@@ -1,10 +1,13 @@
+/** @jest-environment node */
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
+const esbuild = require('esbuild');
 
 class MockWorker {
   constructor(url) {
     const code = fs.readFileSync(path.resolve(__dirname, url), 'utf8');
+    const { code: js } = esbuild.transformSync(code, { loader: 'ts' });
     const sandbox = {
       self: {
         postMessage: (data) => {
@@ -15,7 +18,7 @@ class MockWorker {
         onmessage: null,
       },
     };
-    vm.runInNewContext(code, sandbox);
+    vm.runInNewContext(js, sandbox);
     this._onmessage = sandbox.self.onmessage;
     this.onmessage = null;
   }
@@ -29,38 +32,21 @@ class MockWorker {
   terminate() {}
 }
 
-function runWorker(input) {
+function runWorker(fen) {
   return new Promise((resolve) => {
     const OriginalWorker = global.Worker;
     global.Worker = MockWorker;
-    const worker = new Worker('./worker.js');
+    const worker = new Worker('./workers/engineWorker.ts');
     worker.onmessage = (event) => {
       resolve(event.data);
       global.Worker = OriginalWorker;
     };
-    worker.postMessage(input);
+    worker.postMessage({ type: 'move', fen });
   });
 }
 
-test('pawn moves two squares from starting rank', async () => {
-  const result = await runWorker({ board: { e7: { type: 'P', color: 'b' } }, color: 'b' });
-  expect(result).toEqual({ move: { from: 'e7', to: 'e5' } });
-});
-
-test('pawn moves one square when double step is blocked', async () => {
-  const board = {
-    e7: { type: 'P', color: 'b' },
-    e5: { type: 'P', color: 'w' },
-  };
-  const result = await runWorker({ board, color: 'b' });
-  expect(result).toEqual({ move: { from: 'e7', to: 'e6' } });
-});
-
-test('pawn captures diagonally', async () => {
-  const board = {
-    e4: { type: 'P', color: 'w' },
-    d5: { type: 'P', color: 'b' },
-  };
-  const result = await runWorker({ board, color: 'w' });
-  expect(result).toEqual({ move: { from: 'e4', to: 'd5' } });
+test('engine responds with e7e5 to opening move', async () => {
+  const fen = 'rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1';
+  const result = await runWorker(fen);
+  expect(result).toEqual({ type: 'aiMove', move: 'e7e5' });
 });
