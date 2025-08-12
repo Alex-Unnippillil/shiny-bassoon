@@ -1,8 +1,7 @@
 import React from 'react';
 import { render, fireEvent, waitFor, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import { Provider } from 'react-redux';
-import { store } from '../store';
+import { GameProvider } from '../store';
 import ChessGame from './ChessGame';
 
 describe('ChessGame', () => {
@@ -23,9 +22,9 @@ describe('ChessGame', () => {
 
   function renderWithProvider() {
     return render(
-      <Provider store={store}>
+      <GameProvider>
         <ChessGame />
-      </Provider>
+      </GameProvider>
     );
   }
 
@@ -64,10 +63,13 @@ describe('ChessGame', () => {
     // Undo last moves
     fireEvent.click(screen.getByText(/undo/i));
 
-    expect(container.querySelector('[data-square="e2"] .piece')).toBeInTheDocument();
+    expect(
+      container.querySelector('[data-square="e2"] .piece')
+    ).toBeInTheDocument();
     expect(
       container.querySelector('[data-square="e4"] .piece')
     ).not.toBeInTheDocument();
+    expect(screen.getByTestId('move-list')).toBeEmptyDOMElement();
 
     // Reset board
     fireEvent.click(screen.getByText(/reset/i));
