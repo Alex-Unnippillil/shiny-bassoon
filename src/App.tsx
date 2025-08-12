@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Box, Button } from '@mui/material';
-import { useBoardState, useBoardActions } from './boardStore';
+import { useGameStore } from './store';
 import type { Piece, WorkerMessage } from './types';
 
 const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
@@ -16,8 +16,7 @@ function pieceSymbol(piece: Piece | undefined): string | null {
 }
 
 export default function App() {
-  const { board, orientation } = useBoardState();
-  const { playerMove, aiMove, flipOrientation } = useBoardActions();
+  const { board, orientation, playerMove, aiMove, flipOrientation } = useGameStore();
   const [selected, setSelected] = useState<string | null>(null);
   const squareRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const workerRef = useRef<Worker | null>(null);

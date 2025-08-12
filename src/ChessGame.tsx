@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import useGameStore from './useGameStore';
+import { useGameStore } from './store';
 
 export default function ChessGame() {
   const { exportPGN, importFEN } = useGameStore();
