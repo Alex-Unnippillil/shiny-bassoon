@@ -4,7 +4,7 @@ import { useGameStore } from '../store';
 const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
 const ranks = [8, 7, 6, 5, 4, 3, 2, 1];
 
-function pieceSymbol(piece: { type: 'P'; color: 'w' | 'b' } | undefined) {
+function pieceSymbol(piece: { type: 'P'; color: 'w' | 'b' } | undefined): string | null {
   if (!piece) return null;
   const symbols: Record<string, string> = {
     wP: '♙',
@@ -13,7 +13,11 @@ function pieceSymbol(piece: { type: 'P'; color: 'w' | 'b' } | undefined) {
   return symbols[piece.color + piece.type];
 }
 
-export default function ChessGame() {
+interface WorkerMoveMessage {
+  move?: { from: string; to: string };
+}
+
+export default function ChessGame(): JSX.Element {
   const { board, moves, playerMove, aiMove, undo, reset } = useGameStore();
   const [selected, setSelected] = useState<string | null>(null);
   const workerRef = useRef<Worker | null>(null);
@@ -25,8 +29,8 @@ export default function ChessGame() {
 
   useEffect(() => {
     const worker = workerRef.current!;
-    worker.onmessage = (e: MessageEvent) => {
-      const move = (e.data as any)?.move;
+    worker.onmessage = (e: MessageEvent<WorkerMoveMessage>) => {
+      const move = e.data.move;
       if (move) {
         aiMove(move.from, move.to);
       }

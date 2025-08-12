@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import useGameStore from './useGameStore';
 
-export default function ChessGame() {
+export default function ChessGame(): JSX.Element {
   const { exportPGN, importFEN } = useGameStore();
   const [fenInput, setFenInput] = useState('');
 
