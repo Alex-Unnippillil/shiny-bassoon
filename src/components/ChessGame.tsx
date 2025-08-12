@@ -1,5 +1,6 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { useGameStore } from '../store';
+import useGameControls from '../useGameStore';
 
 const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
 const ranks = [8, 7, 6, 5, 4, 3, 2, 1];
@@ -15,16 +16,19 @@ function pieceSymbol(piece: { type: 'P'; color: 'w' | 'b' } | undefined) {
 
 export default function ChessGame() {
   const { board, moves, playerMove, aiMove, undo, reset } = useGameStore();
+  const { exportPGN, importFEN } = useGameControls();
   const [selected, setSelected] = useState<string | null>(null);
+  const [fenInput, setFenInput] = useState('');
   const workerRef = useRef<Worker | null>(null);
 
-  if (!workerRef.current) {
+  if (!workerRef.current && typeof Worker !== 'undefined') {
     // path is irrelevant for the mocked worker in tests
     workerRef.current = new Worker('');
   }
 
   useEffect(() => {
-    const worker = workerRef.current!;
+    const worker = workerRef.current;
+    if (!worker) return;
     worker.onmessage = (e: MessageEvent) => {
       const move = (e.data as any)?.move;
       if (move) {
@@ -43,6 +47,24 @@ export default function ChessGame() {
       setSelected(sq);
     }
   };
+
+  const handleDownload = useCallback(() => {
+    const pgn = exportPGN();
+    const blob = new Blob([pgn], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'game.pgn';
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [exportPGN]);
+
+  const handleImport = useCallback(() => {
+    if (fenInput) {
+      importFEN(fenInput);
+      setFenInput('');
+    }
+  }, [fenInput, importFEN]);
 
   return (
     <div>
@@ -82,6 +104,13 @@ export default function ChessGame() {
       <div data-testid="move-list">{moves.join(' ')}</div>
       <button onClick={undo}>Undo</button>
       <button onClick={reset}>Reset</button>
+      <button onClick={handleDownload}>Download PGN</button>
+      <input
+        value={fenInput}
+        onChange={(e) => setFenInput(e.target.value)}
+        placeholder="Enter FEN"
+      />
+      <button onClick={handleImport}>Load FEN</button>
     </div>
   );
 }
