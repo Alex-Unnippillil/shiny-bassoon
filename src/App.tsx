@@ -1,15 +1,16 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Box, Button } from '@mui/material';
-import { useBoardState, useBoardActions } from './boardStore.js';
+import { useBoardState, useBoardActions } from './boardStore';
+import type { Piece, WorkerMessage } from './types';
 
 const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
 const ranks = [1, 2, 3, 4, 5, 6, 7, 8];
 
-function pieceSymbol(piece) {
+function pieceSymbol(piece: Piece | undefined): string | null {
   if (!piece) return null;
-  const symbols = {
+  const symbols: Record<string, string> = {
     wP: '♙',
-    bP: '♟︎'
+    bP: '♟︎',
   };
   return symbols[piece.color + piece.type];
 }
@@ -17,17 +18,17 @@ function pieceSymbol(piece) {
 export default function App() {
   const { board, orientation } = useBoardState();
   const { playerMove, aiMove, flipOrientation } = useBoardActions();
-  const [selected, setSelected] = useState(null);
-  const squareRefs = useRef({});
-  const workerRef = useRef(null);
+  const [selected, setSelected] = useState<string | null>(null);
+  const squareRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const workerRef = useRef<Worker | null>(null);
 
   if (!workerRef.current) {
-    workerRef.current = new Worker(new URL('./aiWorker.js', import.meta.url));
+    workerRef.current = new Worker(new URL('./aiWorker.ts', import.meta.url));
   }
 
   useEffect(() => {
-    const worker = workerRef.current;
-    worker.onmessage = (event) => {
+    const worker = workerRef.current!;
+    worker.onmessage = (event: MessageEvent<WorkerMessage>) => {
       const { type, from, to } = event.data || {};
       if (type === 'AI_MOVE') {
         aiMove(from, to);
@@ -48,12 +49,12 @@ export default function App() {
     return squares;
   }, [orientation]);
 
-  const handleMove = (from, to) => {
+  const handleMove = (from: string, to: string) => {
     playerMove(from, to);
-    workerRef.current.postMessage({ type: 'PLAYER_MOVE', from, to });
+    workerRef.current?.postMessage({ type: 'PLAYER_MOVE', from, to } satisfies WorkerMessage);
   };
 
-  const handleSquareClick = square => {
+  const handleSquareClick = (square: string) => {
     if (selected) {
       handleMove(selected, square);
       setSelected(null);
@@ -62,9 +63,9 @@ export default function App() {
     }
   };
 
-  const handleKeyDown = (square, e) => {
+  const handleKeyDown = (square: string, e: React.KeyboardEvent<HTMLButtonElement>) => {
     const index = orderedSquares.indexOf(square);
-    let target;
+    let target: string | undefined;
     switch (e.key) {
       case 'ArrowRight':
         target = orderedSquares[index + 1];
@@ -112,7 +113,9 @@ export default function App() {
               key={sq}
               component="button"
               data-square={sq}
-              ref={el => (squareRefs.current[sq] = el)}
+              ref={(el) => {
+                squareRefs.current[sq] = el as HTMLButtonElement | null;
+              }}
               tabIndex={0}
               aria-label={`square ${sq}${piece ? ' with ' + (piece.color === 'w' ? 'white' : 'black') + ' pawn' : ''}`}
               onClick={() => handleSquareClick(sq)}
