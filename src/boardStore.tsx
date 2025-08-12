@@ -3,7 +3,7 @@ import React, { createContext, useReducer, useContext, useMemo } from 'react';
 function initialBoard() {
   return {
     e2: { type: 'P', color: 'w' },
-    e7: { type: 'P', color: 'b' }
+    e7: { type: 'P', color: 'b' },
   };
 }
 
@@ -19,9 +19,15 @@ function reducer(state, action) {
   switch (action.type) {
     case 'PLAYER_MOVE':
     case 'AI_MOVE':
-      return { ...state, board: movePiece(state.board, action.from, action.to) };
+      return {
+        ...state,
+        board: movePiece(state.board, action.from, action.to),
+      };
     case 'FLIP_ORIENTATION':
-      return { ...state, orientation: state.orientation === 'white' ? 'black' : 'white' };
+      return {
+        ...state,
+        orientation: state.orientation === 'white' ? 'black' : 'white',
+      };
     default:
       return state;
   }
@@ -32,18 +38,23 @@ const BoardContext = createContext(null);
 export function BoardProvider({ children }) {
   const [state, dispatch] = useReducer(reducer, {
     board: initialBoard(),
-    orientation: 'white'
+    orientation: 'white',
   });
 
-  const actions = useMemo(() => ({
-    playerMove: (from, to) => dispatch({ type: 'PLAYER_MOVE', from, to }),
-    aiMove: (from, to) => dispatch({ type: 'AI_MOVE', from, to }),
-    flipOrientation: () => dispatch({ type: 'FLIP_ORIENTATION' })
-  }), [dispatch]);
+  const actions = useMemo(
+    () => ({
+      playerMove: (from, to) => dispatch({ type: 'PLAYER_MOVE', from, to }),
+      aiMove: (from, to) => dispatch({ type: 'AI_MOVE', from, to }),
+      flipOrientation: () => dispatch({ type: 'FLIP_ORIENTATION' }),
+    }),
+    [dispatch],
+  );
 
   const value = useMemo(() => ({ state, actions }), [state, actions]);
 
-  return <BoardContext.Provider value={value}>{children}</BoardContext.Provider>;
+  return (
+    <BoardContext.Provider value={value}>{children}</BoardContext.Provider>
+  );
 }
 
 export function useBoardState() {

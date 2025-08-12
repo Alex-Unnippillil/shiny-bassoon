@@ -1,5 +1,5 @@
 import React from 'react';
-import useGameStore from './useGameStore.js';
+import useGameStore from './useGameStore.ts';
 
 function ChessGame() {
   const { exportPGN, importFEN } = useGameStore();
@@ -26,21 +26,13 @@ function ChessGame() {
   return React.createElement(
     'div',
     null,
-    React.createElement(
-      'button',
-      { onClick: handleDownload },
-      'Download PGN'
-    ),
+    React.createElement('button', { onClick: handleDownload }, 'Download PGN'),
     React.createElement('input', {
       value: fenInput,
       onChange: (e) => setFenInput(e.target.value),
       placeholder: 'Enter FEN',
     }),
-    React.createElement(
-      'button',
-      { onClick: handleImport },
-      'Load FEN'
-    )
+    React.createElement('button', { onClick: handleImport }, 'Load FEN'),
   );
 }
 

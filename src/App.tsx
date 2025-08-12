@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Box, Button } from '@mui/material';
-import { useBoardState, useBoardActions } from './boardStore.js';
+import { useBoardState, useBoardActions } from './boardStore.tsx';
 
 const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
 const ranks = [1, 2, 3, 4, 5, 6, 7, 8];
@@ -9,7 +9,7 @@ function pieceSymbol(piece) {
   if (!piece) return null;
   const symbols = {
     wP: '♙',
-    bP: '♟︎'
+    bP: '♟︎',
   };
   return symbols[piece.color + piece.type];
 }
@@ -22,7 +22,7 @@ export default function App() {
   const workerRef = useRef(null);
 
   if (!workerRef.current) {
-    workerRef.current = new Worker(new URL('./aiWorker.js', import.meta.url));
+    workerRef.current = new Worker(new URL('./aiWorker.ts', import.meta.url));
   }
 
   useEffect(() => {
@@ -53,7 +53,7 @@ export default function App() {
     workerRef.current.postMessage({ type: 'PLAYER_MOVE', from, to });
   };
 
-  const handleSquareClick = square => {
+  const handleSquareClick = (square) => {
     if (selected) {
       handleMove(selected, square);
       setSelected(null);
@@ -101,7 +101,7 @@ export default function App() {
           width: '100%',
           maxWidth: 400,
           aspectRatio: '1 / 1',
-          border: '1px solid #333'
+          border: '1px solid #333',
         }}
       >
         {orderedSquares.map((sq, idx) => {
@@ -112,11 +112,11 @@ export default function App() {
               key={sq}
               component="button"
               data-square={sq}
-              ref={el => (squareRefs.current[sq] = el)}
+              ref={(el) => (squareRefs.current[sq] = el)}
               tabIndex={0}
               aria-label={`square ${sq}${piece ? ' with ' + (piece.color === 'w' ? 'white' : 'black') + ' pawn' : ''}`}
               onClick={() => handleSquareClick(sq)}
-              onKeyDown={e => handleKeyDown(sq, e)}
+              onKeyDown={(e) => handleKeyDown(sq, e)}
               sx={{
                 backgroundColor: isDark ? '#769656' : '#eeeed2',
                 color: '#000',

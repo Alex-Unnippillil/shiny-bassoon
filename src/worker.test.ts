@@ -33,7 +33,7 @@ function runWorker(input) {
   return new Promise((resolve) => {
     const OriginalWorker = global.Worker;
     global.Worker = MockWorker;
-    const worker = new Worker('./worker.js');
+    const worker = new Worker('./worker.ts');
     worker.onmessage = (event) => {
       resolve(event.data);
       global.Worker = OriginalWorker;
@@ -43,7 +43,10 @@ function runWorker(input) {
 }
 
 test('pawn moves two squares from starting rank', async () => {
-  const result = await runWorker({ board: { e7: { type: 'P', color: 'b' } }, color: 'b' });
+  const result = await runWorker({
+    board: { e7: { type: 'P', color: 'b' } },
+    color: 'b',
+  });
   expect(result).toEqual({ move: { from: 'e7', to: 'e5' } });
 });
 
