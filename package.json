@@ -2,7 +2,6 @@
   "name": "shiny-bassoon",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
   "scripts": {
     "test": "jest",
     "dev": "vite",
