@@ -1,7 +1,9 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { Box, Button } from '@mui/material';
+import { Box, Button, Typography } from '@mui/material';
+import { Chess } from 'chess.js';
 import { useBoardState, useBoardActions } from './boardStore';
-import type { Piece, WorkerMessage } from './types';
+import type { Piece, WorkerRequest, WorkerResponse } from './types';
+import { INITIAL_FEN } from './constants';
 
 const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
 const ranks = [1, 2, 3, 4, 5, 6, 7, 8];
@@ -11,6 +13,8 @@ function pieceSymbol(piece: Piece | undefined): string | null {
   const symbols: Record<string, string> = {
     wP: '♙',
     bP: '♟︎',
+    wK: '♔',
+    bK: '♚',
   };
   return symbols[piece.color + piece.type];
 }
@@ -19,21 +23,19 @@ export default function App(): JSX.Element {
   const { board, orientation } = useBoardState();
   const { playerMove, aiMove, flipOrientation } = useBoardActions();
   const [selected, setSelected] = useState<string | null>(null);
+  const [status, setStatus] = useState('');
   const squareRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const workerRef = useRef<Worker | null>(null);
-  const [announcement, setAnnouncement] = useState('');
+
 
   if (!workerRef.current) {
     workerRef.current = new Worker(new URL('./aiWorker.ts', import.meta.url));
+    workerRef.current.postMessage({ type: 'INIT', fen: INITIAL_FEN } satisfies WorkerRequest);
   }
 
   useEffect(() => {
     const worker = workerRef.current!;
-    worker.onmessage = (event: MessageEvent<WorkerMessage>) => {
-      const { type, from, to } = event.data || {};
-      if (type === 'AI_MOVE') {
-        aiMove(from, to);
-        setAnnouncement(`AI moved ${from} to ${to}`);
+
       }
     };
     return () => worker.terminate();
@@ -51,10 +53,7 @@ export default function App(): JSX.Element {
     return squares;
   }, [orientation]);
 
-  const handleMove = (from: string, to: string): void => {
-    playerMove(from, to);
-    workerRef.current?.postMessage({ type: 'PLAYER_MOVE', from, to } satisfies WorkerMessage);
-    setAnnouncement(`Player moved ${from} to ${to}`);
+
   };
 
   const handleSquareClick = (square: string): void => {
@@ -131,7 +130,7 @@ export default function App(): JSX.Element {
                 squareRefs.current[sq] = el as HTMLButtonElement | null;
               }}
               tabIndex={0}
-              aria-label={`square ${sq}${piece ? ' with ' + (piece.color === 'w' ? 'white' : 'black') + ' pawn' : ''}`}
+              aria-label={`square ${sq}${piece ? ' with ' + (piece.color === 'w' ? 'white' : 'black') + ' ' + (piece.type === 'P' ? 'pawn' : 'king') : ''}`}
               onClick={() => handleSquareClick(sq)}
               onKeyDown={e => handleKeyDown(sq, e)}
               sx={{
@@ -157,22 +156,8 @@ export default function App(): JSX.Element {
       >
         Flip Board
       </Button>
-      <Box
-        aria-live="polite"
-        data-testid="announcer"
-        sx={{
-          position: 'absolute',
-          width: '1px',
-          height: '1px',
-          padding: 0,
-          overflow: 'hidden',
-          clip: 'rect(0 0 0 0)',
-          whiteSpace: 'nowrap',
-          border: 0,
-        }}
-      >
-        {announcement}
-      </Box>
+
+      
     </Box>
   );
 }
