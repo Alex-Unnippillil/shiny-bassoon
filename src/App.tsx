@@ -21,6 +21,7 @@ export default function App(): JSX.Element {
   const [selected, setSelected] = useState<string | null>(null);
   const squareRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const workerRef = useRef<Worker | null>(null);
+  const [announcement, setAnnouncement] = useState('');
 
   if (!workerRef.current) {
     workerRef.current = new Worker(new URL('./aiWorker.ts', import.meta.url));
@@ -32,6 +33,7 @@ export default function App(): JSX.Element {
       const { type, from, to } = event.data || {};
       if (type === 'AI_MOVE') {
         aiMove(from, to);
+        setAnnouncement(`AI moved ${from} to ${to}`);
       }
     };
     return () => worker.terminate();
@@ -52,6 +54,7 @@ export default function App(): JSX.Element {
   const handleMove = (from: string, to: string): void => {
     playerMove(from, to);
     workerRef.current?.postMessage({ type: 'PLAYER_MOVE', from, to } satisfies WorkerMessage);
+    setAnnouncement(`Player moved ${from} to ${to}`);
   };
 
   const handleSquareClick = (square: string): void => {
@@ -96,11 +99,18 @@ export default function App(): JSX.Element {
     }
   };
 
+  const handleFlip = () => {
+    const newOrientation = orientation === 'white' ? 'black' : 'white';
+    flipOrientation();
+    setAnnouncement(`Board orientation is now ${newOrientation} at bottom`);
+  };
+
   return (
     <Box display="flex" flexDirection="column" alignItems="center" gap={2}>
       <Box
         display="grid"
         gridTemplateColumns="repeat(8, 1fr)"
+        role="grid"
         sx={{
           width: '100%',
           maxWidth: 400,
@@ -116,6 +126,7 @@ export default function App(): JSX.Element {
               key={sq}
               component="button"
               data-square={sq}
+              role="gridcell"
               ref={(el) => {
                 squareRefs.current[sq] = el as HTMLButtonElement | null;
               }}
@@ -141,11 +152,27 @@ export default function App(): JSX.Element {
       </Box>
       <Button
         variant="contained"
-        onClick={flipOrientation}
+        onClick={handleFlip}
         aria-label="Toggle board orientation"
       >
         Flip Board
       </Button>
+      <Box
+        aria-live="polite"
+        data-testid="announcer"
+        sx={{
+          position: 'absolute',
+          width: '1px',
+          height: '1px',
+          padding: 0,
+          overflow: 'hidden',
+          clip: 'rect(0 0 0 0)',
+          whiteSpace: 'nowrap',
+          border: 0,
+        }}
+      >
+        {announcement}
+      </Box>
     </Box>
   );
 }
