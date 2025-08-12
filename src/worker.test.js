@@ -1,43 +1,28 @@
-import fs from 'fs';
+/** @jest-environment node */
+
 import path from 'path';
-import vm from 'vm';
-
-class MockWorker {
-  constructor(url) {
-    const code = fs.readFileSync(path.resolve(__dirname, url), 'utf8');
-    const sandbox = {
-      self: {
-        postMessage: (data) => {
-          if (this.onmessage) {
-            this.onmessage({ data });
-          }
-        },
-        onmessage: null,
-      },
-    };
-    vm.runInNewContext(code, sandbox);
-    this._onmessage = sandbox.self.onmessage;
-    this.onmessage = null;
-  }
-
-  postMessage(data) {
-    if (this._onmessage) {
-      this._onmessage({ data });
-    }
-  }
-
-  terminate() {}
-}
+import { pathToFileURL } from 'url';
+import { Worker } from 'worker_threads';
 
 function runWorker(input) {
-  return new Promise((resolve) => {
-    const OriginalWorker = global.Worker;
-    global.Worker = MockWorker;
-    const worker = new Worker('./worker.js');
-    worker.onmessage = (event) => {
-      resolve(event.data);
-      global.Worker = OriginalWorker;
-    };
+  return new Promise((resolve, reject) => {
+    const workerUrl = pathToFileURL(path.resolve(__dirname, './worker.js')).href;
+    const worker = new Worker(
+      `
+        import { parentPort } from 'worker_threads';
+        const self = {
+          postMessage: (data) => parentPort.postMessage(data),
+          onmessage: null,
+        };
+        globalThis.self = self;
+        await import('${workerUrl}');
+        parentPort.on('message', (data) => self.onmessage({ data }));
+      `,
+      { eval: true, type: 'module' },
+    );
+
+    worker.on('message', (data) => resolve(data));
+    worker.on('error', reject);
     worker.postMessage(input);
   });
 }
@@ -64,3 +49,4 @@ test('pawn captures diagonally', async () => {
   const result = await runWorker({ board, color: 'w' });
   expect(result).toEqual({ move: { from: 'e4', to: 'd5' } });
 });
+
