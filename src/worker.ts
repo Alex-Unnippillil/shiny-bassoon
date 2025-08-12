@@ -1,5 +1,7 @@
-function generatePawnMoves(from, board, color) {
-  const moves = [];
+import type { Board, Move, WorkerRequest, WorkerResponse, Color } from './types';
+
+function generatePawnMoves(from: string, board: Board, color: Color): Move[] {
+  const moves: Move[] = [];
   const file = from.charCodeAt(0);
   const rank = parseInt(from[1], 10);
   const forward = color === 'w' ? 1 : -1;
@@ -39,7 +41,7 @@ function generatePawnMoves(from, board, color) {
   return moves;
 }
 
-function choosePawnMove(board, color) {
+function choosePawnMove(board: Board, color: Color): Move | null {
   const squares = Object.keys(board).sort();
   for (const sq of squares) {
     const piece = board[sq];
@@ -51,16 +53,20 @@ function choosePawnMove(board, color) {
   return null;
 }
 
-self.onmessage = (event) => {
+self.onmessage = (event: MessageEvent<WorkerRequest>) => {
   const { board, color } = event.data || {};
   if (!board || !color) {
-    self.postMessage({ error: 'Invalid input' });
+    (self as DedicatedWorkerGlobalScope).postMessage({
+      error: 'Invalid input',
+    } as WorkerResponse);
     return;
   }
   const move = choosePawnMove(board, color);
   if (move) {
-    self.postMessage({ move });
+    (self as DedicatedWorkerGlobalScope).postMessage({ move } as WorkerResponse);
   } else {
-    self.postMessage({ error: 'No legal moves' });
+    (self as DedicatedWorkerGlobalScope).postMessage({
+      error: 'No legal moves',
+    } as WorkerResponse);
   }
 };

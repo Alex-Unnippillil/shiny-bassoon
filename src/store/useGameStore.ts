@@ -1,6 +1,6 @@
 const INITIAL_BOARD = Array(9).fill(null);
 
-export function createGameStore(worker?: { postMessage: (msg: any) => void }) {
+export function createGameStore(worker?: { postMessage: (msg: unknown) => void }) {
   const aiWorker = worker || { postMessage: () => {} };
   let board = [...INITIAL_BOARD];
   let history = [[...board]];

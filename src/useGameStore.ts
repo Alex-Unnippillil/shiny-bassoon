@@ -1,63 +1,70 @@
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 
 const FEN_KEY = 'game_fen';
 const HISTORY_KEY = 'game_history';
 
-function safeJSONParse(str, fallback) {
+function safeJSONParse<T>(str: string | null, fallback: T): T {
   try {
-    return JSON.parse(str);
-  } catch (_) {
+    return str ? (JSON.parse(str) as T) : fallback;
+  } catch {
     return fallback;
   }
 }
 
-function useGameStore() {
+interface GameStore {
+  fen: string;
+  setFen: React.Dispatch<React.SetStateAction<string>>;
+  history: string[];
+  addMove: (move: string) => void;
+  exportPGN: () => string;
+  importFEN: (newFen: string) => void;
+}
+
+export default function useGameStore(): GameStore {
   // initialise state from localStorage when available
-  const [fen, setFen] = React.useState(() => {
+  const [fen, setFen] = useState<string>(() => {
     if (typeof localStorage !== 'undefined') {
       return localStorage.getItem(FEN_KEY) || '';
     }
     return '';
   });
 
-  const [history, setHistory] = React.useState(() => {
+  const [history, setHistory] = useState<string[]>(() => {
     if (typeof localStorage !== 'undefined') {
-      return safeJSONParse(localStorage.getItem(HISTORY_KEY), []);
+      return safeJSONParse<string[]>(localStorage.getItem(HISTORY_KEY), []);
     }
     return [];
   });
 
   // persist FEN whenever it changes
-  React.useEffect(() => {
+  useEffect(() => {
     if (typeof localStorage !== 'undefined') {
       localStorage.setItem(FEN_KEY, fen);
     }
   }, [fen]);
 
   // persist move history whenever it changes
-  React.useEffect(() => {
+  useEffect(() => {
     if (typeof localStorage !== 'undefined') {
       localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
     }
   }, [history]);
 
   // add a move to history
-  const addMove = React.useCallback((move) => {
+  const addMove = useCallback((move: string) => {
     setHistory((h) => [...h, move]);
   }, []);
 
   // export the move history as a simple PGN string
-  const exportPGN = React.useCallback(() => {
+  const exportPGN = useCallback(() => {
     return history.join(' ');
   }, [history]);
 
   // import a FEN position and reset move history
-  const importFEN = React.useCallback((newFen) => {
+  const importFEN = useCallback((newFen: string) => {
     setFen(newFen);
     setHistory([]);
   }, []);
 
   return { fen, setFen, history, addMove, exportPGN, importFEN };
 }
-
-export default useGameStore;
