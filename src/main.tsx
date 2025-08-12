@@ -1,9 +1,9 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import App from './App.jsx';
+import App from './App';
 import './index.css';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
-import { BoardProvider } from './boardStore.js';
+import { BoardProvider } from './boardStore';
 
 const theme = createTheme();
 

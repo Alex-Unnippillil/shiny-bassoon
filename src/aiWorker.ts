@@ -1,4 +1,6 @@
-self.onmessage = (e) => {
+self.onmessage = (
+  e: MessageEvent<{ type: string; from: string; to: string }>,
+) => {
   const { type, from, to } = e.data || {};
   if (type === 'PLAYER_MOVE') {
     if (from === 'e2' && to === 'e4') {
@@ -8,3 +10,5 @@ self.onmessage = (e) => {
     }
   }
 };
+
+export {};
