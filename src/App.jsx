@@ -1,6 +1,7 @@
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { Box, Button } from '@mui/material';
 import { useBoardState, useBoardActions } from './boardStore.js';
+import { getAIMove } from './utils/ai.ts';
 
 const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
 const ranks = [1, 2, 3, 4, 5, 6, 7, 8];
@@ -19,22 +20,6 @@ export default function App() {
   const { playerMove, aiMove, flipOrientation } = useBoardActions();
   const [selected, setSelected] = useState(null);
   const squareRefs = useRef({});
-  const workerRef = useRef(null);
-
-  if (!workerRef.current) {
-    workerRef.current = new Worker(new URL('./aiWorker.js', import.meta.url));
-  }
-
-  useEffect(() => {
-    const worker = workerRef.current;
-    worker.onmessage = (event) => {
-      const { type, from, to } = event.data || {};
-      if (type === 'AI_MOVE') {
-        aiMove(from, to);
-      }
-    };
-    return () => worker.terminate();
-  }, [aiMove]);
 
   const orderedSquares = useMemo(() => {
     const fileOrder = orientation === 'white' ? files : [...files].reverse();
@@ -49,8 +34,12 @@ export default function App() {
   }, [orientation]);
 
   const handleMove = (from, to) => {
+    const newBoard = { ...board, [to]: board[from] };
+    delete newBoard[from];
     playerMove(from, to);
-    workerRef.current.postMessage({ type: 'PLAYER_MOVE', from, to });
+    getAIMove(newBoard, 'b').then(({ from: aiFrom, to: aiTo }) => {
+      aiMove(aiFrom, aiTo);
+    });
   };
 
   const handleSquareClick = square => {

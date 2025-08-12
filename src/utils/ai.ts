@@ -9,7 +9,14 @@ function getWorker(): Worker {
   return worker;
 }
 
-export function getAIMove(fen: string): Promise<string> {
+interface Piece {
+  type: 'P';
+  color: 'w' | 'b';
+}
+
+type Board = Record<string, Piece>;
+
+export function getAIMove(board: Board, color: 'w' | 'b'): Promise<{ from: string; to: string; }> {
   return new Promise((resolve) => {
     const w = getWorker();
 
@@ -17,11 +24,12 @@ export function getAIMove(fen: string): Promise<string> {
       const data = event.data;
       if (data && data.type === 'aiMove') {
         w.removeEventListener('message', handleMessage);
-        resolve(data.move);
+        resolve({ from: data.from, to: data.to });
       }
     }
 
     w.addEventListener('message', handleMessage);
-    w.postMessage({ type: 'move', fen });
+    w.postMessage({ type: 'move', board, color });
   });
 }
+
