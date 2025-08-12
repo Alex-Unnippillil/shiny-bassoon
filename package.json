@@ -4,7 +4,6 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "lint": "echo \"linting\"",
     "test": "jest",
     "dev": "vite",
     "e2e": "playwright test",
@@ -14,7 +13,7 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "commonjs",
+  "type": "module",
   "dependencies": {
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
@@ -27,6 +26,10 @@
     "@testing-library/jest-dom": "^6.6.4",
     "@testing-library/react": "^16.3.0",
     "@vitejs/plugin-react": "^5.0.0",
+    "@swc/core": "^1.7.17",
+    "@swc/jest": "^0.2.36",
+    "@typescript-eslint/eslint-plugin": "^8.14.0",
+    "@typescript-eslint/parser": "^8.14.0",
     "eslint": "^8.57.1",
     "jest": "^30.0.5",
     "jest-environment-jsdom": "^30.0.5",

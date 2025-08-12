@@ -1,10 +1,9 @@
-const fs = require('fs');
-const path = require('path');
-const vm = require('vm');
+import fs from 'fs';
+import vm from 'vm';
 
 class MockWorker {
   constructor(url) {
-    const code = fs.readFileSync(path.resolve(__dirname, url), 'utf8');
+    const code = fs.readFileSync(new URL(url, import.meta.url), 'utf8');
     const sandbox = {
       self: {
         postMessage: (data) => {

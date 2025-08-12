@@ -1,11 +1,11 @@
-const React = require('react');
-const useGameStore = require('./useGameStore');
+import React, { useCallback, useState } from 'react';
+import useGameStore from './useGameStore.js';
 
-function ChessGame() {
+export default function ChessGame() {
   const { exportPGN, importFEN } = useGameStore();
-  const [fenInput, setFenInput] = React.useState('');
+  const [fenInput, setFenInput] = useState('');
 
-  const handleDownload = React.useCallback(() => {
+  const handleDownload = useCallback(() => {
     const pgn = exportPGN();
     const blob = new Blob([pgn], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
@@ -16,7 +16,7 @@ function ChessGame() {
     URL.revokeObjectURL(url);
   }, [exportPGN]);
 
-  const handleImport = React.useCallback(() => {
+  const handleImport = useCallback(() => {
     if (fenInput) {
       importFEN(fenInput);
       setFenInput('');
@@ -43,5 +43,3 @@ function ChessGame() {
     )
   );
 }
-
-module.exports = ChessGame;

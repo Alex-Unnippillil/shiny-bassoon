@@ -1,4 +1,4 @@
-const { createGameStore } = require('./useGameStore');
+import { createGameStore } from './useGameStore';
 
 describe('useGameStore', () => {
   let store;
