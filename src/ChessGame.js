@@ -1,5 +1,5 @@
 import React from 'react';
-import useGameStore from './useGameStore.js';
+import { useGameStore } from './store';
 
 function ChessGame() {
   const { exportPGN, importFEN } = useGameStore();

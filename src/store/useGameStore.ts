@@ -1,49 +1,57 @@
-const INITIAL_BOARD = Array(9).fill(null);
+import { useState, useEffect, useCallback } from 'react';
 
-export function createGameStore(worker?: { postMessage: (msg: any) => void }) {
-  const aiWorker = worker || { postMessage: () => {} };
-  let board = [...INITIAL_BOARD];
-  let history = [[...board]];
-  let currentPlayer = 'X';
+const FEN_KEY = 'game_fen';
+const HISTORY_KEY = 'game_history';
 
-  function makeMove(index: number) {
-    if (board[index] !== null) return;
-    board[index] = currentPlayer;
-    history.push([...board]);
-    currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
-    if (aiWorker && typeof aiWorker.postMessage === 'function') {
-      aiWorker.postMessage({ board: [...board], player: currentPlayer });
-    }
+function safeJSONParse<T>(str: string | null, fallback: T): T {
+  if (!str) return fallback;
+  try {
+    return JSON.parse(str) as T;
+  } catch {
+    return fallback;
   }
-
-  function undoMove() {
-    if (history.length > 1) {
-      history.pop();
-      board = [...history[history.length - 1]];
-      currentPlayer = history.length % 2 === 1 ? 'X' : 'O';
-    }
-  }
-
-  function resetGame() {
-    board = [...INITIAL_BOARD];
-    history = [[...board]];
-    currentPlayer = 'X';
-  }
-
-  return {
-    get board() {
-      return board;
-    },
-    get history() {
-      return history;
-    },
-    get currentPlayer() {
-      return currentPlayer;
-    },
-    makeMove,
-    undoMove,
-    resetGame,
-  };
 }
 
-export const useGameStore = createGameStore();
+export default function useGameStore() {
+  const [fen, setFen] = useState<string>(() => {
+    if (typeof localStorage !== 'undefined') {
+      return localStorage.getItem(FEN_KEY) || '';
+    }
+    return '';
+  });
+
+  const [history, setHistory] = useState<string[]>(() => {
+    if (typeof localStorage !== 'undefined') {
+      return safeJSONParse<string[]>(localStorage.getItem(HISTORY_KEY), []);
+    }
+    return [];
+  });
+
+  useEffect(() => {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(FEN_KEY, fen);
+    }
+  }, [fen]);
+
+  useEffect(() => {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+    }
+  }, [history]);
+
+  const addMove = useCallback((move: string) => {
+    setHistory((h) => [...h, move]);
+  }, []);
+
+  const exportPGN = useCallback(() => {
+    return history.join(' ');
+  }, [history]);
+
+  const importFEN = useCallback((newFen: string) => {
+    setFen(newFen);
+    setHistory([]);
+  }, []);
+
+  return { fen, setFen, history, addMove, exportPGN, importFEN } as const;
+}
+

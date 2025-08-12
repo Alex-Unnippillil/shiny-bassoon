@@ -1,44 +1,66 @@
-import { createGameStore } from './useGameStore';
+import { renderHook, act } from '@testing-library/react';
+import { useGameStore } from './index';
 
-describe('useGameStore', () => {
-  let store;
-  let mockWorker;
+const FEN_KEY = 'game_fen';
+const HISTORY_KEY = 'game_history';
 
-  beforeEach(() => {
-    mockWorker = { postMessage: jest.fn() };
-    store = createGameStore(mockWorker);
-  });
-
-  test('sequence of valid moves updates board and history', () => {
-    store.makeMove(0); // X
-    store.makeMove(1); // O
-
-    expect(store.board[0]).toBe('X');
-    expect(store.board[1]).toBe('O');
-    expect(store.history).toHaveLength(3); // initial + two moves
-    expect(store.history[1][0]).toBe('X');
-    expect(store.history[2][1]).toBe('O');
-    expect(mockWorker.postMessage).toHaveBeenCalledTimes(2);
-  });
-
-  test('undoMove reverts to the previous state', () => {
-    store.makeMove(0);
-    store.makeMove(1);
-
-    store.undoMove();
-
-    expect(store.board[1]).toBeNull();
-    expect(store.board[0]).toBe('X');
-    expect(store.history).toHaveLength(2);
-    expect(store.currentPlayer).toBe('O');
-  });
-
-  test('resetGame clears the board and history', () => {
-    store.makeMove(0);
-    store.resetGame();
-
-    expect(store.board).toEqual(Array(9).fill(null));
-    expect(store.history).toEqual([Array(9).fill(null)]);
-    expect(store.currentPlayer).toBe('X');
-  });
+beforeEach(() => {
+  localStorage.clear();
 });
+
+test('persists FEN across sessions', () => {
+  const { result, unmount } = renderHook(() => useGameStore());
+
+  act(() => {
+    result.current.setFen('fen-string');
+  });
+
+  expect(localStorage.getItem(FEN_KEY)).toBe('fen-string');
+
+  unmount();
+
+  const { result: result2 } = renderHook(() => useGameStore());
+  expect(result2.current.fen).toBe('fen-string');
+});
+
+test('exports PGN from move history', () => {
+  const { result } = renderHook(() => useGameStore());
+
+  act(() => {
+    result.current.addMove('e4');
+    result.current.addMove('e5');
+    result.current.addMove('Nf3');
+  });
+
+  expect(result.current.exportPGN()).toBe('e4 e5 Nf3');
+});
+
+test('resets and persists move history', () => {
+  const { result, unmount } = renderHook(() => useGameStore());
+
+  act(() => {
+    result.current.addMove('e4');
+    result.current.addMove('e5');
+  });
+
+  expect(result.current.history).toEqual(['e4', 'e5']);
+  expect(localStorage.getItem(HISTORY_KEY)).toBe(JSON.stringify(['e4', 'e5']));
+
+  act(() => {
+    result.current.importFEN('new-fen');
+  });
+
+  expect(result.current.history).toEqual([]);
+
+  act(() => {
+    result.current.addMove('Nf3');
+  });
+
+  expect(result.current.history).toEqual(['Nf3']);
+
+  unmount();
+
+  const { result: result2 } = renderHook(() => useGameStore());
+  expect(result2.current.history).toEqual(['Nf3']);
+});
+
