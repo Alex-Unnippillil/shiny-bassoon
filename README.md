@@ -5,7 +5,7 @@ Shiny Bassoon demonstrates a simple architecture combining a central store, a We
 ## Architecture
 - **Store**: Application state lives in a central store so components can access shared data.
 - **Worker-based AI**: Heavy AI logic runs inside a Web Worker (`src/worker.js`) to keep the UI responsive.
-- **React components**: Components such as `src/WorkerComponent.js` interact with the store and post messages to the worker.
+- **React components**: UI components communicate with the store and can post messages directly to the worker.
 
 ## Getting Started
 1. Install dependencies: `npm install`
