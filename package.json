@@ -6,7 +6,9 @@
   "scripts": {
     "test": "jest",
     "dev": "vite",
-    "e2e": "playwright test"
+    "e2e": "playwright test",
+    "lint": "eslint src tests",
+    "format": "prettier --write ."
   },
   "keywords": [],
   "author": "",
@@ -24,8 +26,10 @@
     "@testing-library/jest-dom": "^6.6.4",
     "@testing-library/react": "^16.3.0",
     "@vitejs/plugin-react": "^5.0.0",
+    "eslint": "^8.57.1",
     "jest": "^30.0.5",
     "jest-environment-jsdom": "^30.0.5",
+    "prettier": "^3.6.2",
     "vite": "^7.1.1"
   }
 }
