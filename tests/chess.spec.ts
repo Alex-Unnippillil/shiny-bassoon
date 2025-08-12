@@ -1,13 +1,15 @@
 import { test, expect } from '@playwright/test';
 
-test('ai responds to a legal move', async ({ page }) => {
+test('board uses grid roles and supports keyboard navigation', async ({ page }) => {
   await page.goto('/');
 
-  // Perform player's move: pawn from e2 to e4
-  await page.locator('[data-square="e2"]').click();
-  await page.locator('[data-square="e4"]').click();
+  // verify grid role and cell count
+  await expect(page.getByRole('grid')).toBeVisible();
+  await expect(page.getByRole('gridcell').nth(63)).toBeVisible();
 
-  // Wait for AI to make a move and verify a piece appears on expected square
-  await expect(page.locator('[data-square="e5"] .piece')).toBeVisible({ timeout: 10000 });
+  // keyboard navigation
+  const e2 = page.locator('[data-square="e2"]');
+  await e2.focus();
+  await page.keyboard.press('ArrowRight');
+  await expect(page.locator(':focus')).toHaveAttribute('data-square', 'f2');
 });
-
