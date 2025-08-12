@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { Box, Button } from '@mui/material';
+import { Box, Button, TextField } from '@mui/material';
 import { useBoardState, useBoardActions } from './boardStore.js';
 
 const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
@@ -9,20 +9,35 @@ function pieceSymbol(piece) {
   if (!piece) return null;
   const symbols = {
     wP: '♙',
-    bP: '♟︎'
+    wR: '♖',
+    wN: '♘',
+    wB: '♗',
+    wQ: '♕',
+    wK: '♔',
+    bP: '♟︎',
+    bR: '♜',
+    bN: '♞',
+    bB: '♝',
+    bQ: '♛',
+    bK: '♚'
   };
   return symbols[piece.color + piece.type];
 }
 
 export default function App() {
-  const { board, orientation } = useBoardState();
-  const { playerMove, aiMove, flipOrientation } = useBoardActions();
+  const { board, orientation, history } = useBoardState();
+  const { playerMove, aiMove, flipOrientation, undo, reset, importFEN, exportPGN } = useBoardActions();
   const [selected, setSelected] = useState(null);
+  const [fenInput, setFenInput] = useState('');
   const squareRefs = useRef({});
   const workerRef = useRef(null);
 
-  if (!workerRef.current) {
-    workerRef.current = new Worker(new URL('./aiWorker.js', import.meta.url));
+  if (!workerRef.current && typeof Worker !== 'undefined') {
+    try {
+      workerRef.current = new Worker('./aiWorker.js');
+    } catch {
+      // noop in test environment
+    }
   }
 
   useEffect(() => {
@@ -114,7 +129,7 @@ export default function App() {
               data-square={sq}
               ref={el => (squareRefs.current[sq] = el)}
               tabIndex={0}
-              aria-label={`square ${sq}${piece ? ' with ' + (piece.color === 'w' ? 'white' : 'black') + ' pawn' : ''}`}
+              aria-label={`square ${sq}${piece ? ' with ' + (piece.color === 'w' ? 'white' : 'black') + ' piece' : ''}`}
               onClick={() => handleSquareClick(sq)}
               onKeyDown={e => handleKeyDown(sq, e)}
               sx={{
@@ -133,13 +148,52 @@ export default function App() {
           );
         })}
       </Box>
-      <Button
-        variant="contained"
-        onClick={flipOrientation}
-        aria-label="Toggle board orientation"
-      >
-        Flip Board
-      </Button>
+      <Box display="flex" gap={1}>
+        <Button variant="contained" onClick={flipOrientation} aria-label="Toggle board orientation">Flip Board</Button>
+        <Button variant="contained" onClick={undo}>Undo</Button>
+        <Button variant="contained" onClick={reset}>Reset</Button>
+      </Box>
+      <Box>
+        <ol data-testid="move-list">
+          {history.map((m, i) => (
+            <li key={i}>{m}</li>
+          ))}
+        </ol>
+      </Box>
+      <Box display="flex" gap={1} alignItems="center">
+        <Button
+          variant="outlined"
+          onClick={() => {
+            const pgn = exportPGN();
+            const blob = new Blob([pgn], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'game.pgn';
+            a.click();
+            URL.revokeObjectURL(url);
+          }}
+        >
+          Download PGN
+        </Button>
+        <TextField
+          size="small"
+          placeholder="Enter FEN"
+          value={fenInput}
+          onChange={(e) => setFenInput(e.target.value)}
+        />
+        <Button
+          variant="outlined"
+          onClick={() => {
+            if (fenInput) {
+              importFEN(fenInput);
+              setFenInput('');
+            }
+          }}
+        >
+          Load FEN
+        </Button>
+      </Box>
     </Box>
   );
 }
