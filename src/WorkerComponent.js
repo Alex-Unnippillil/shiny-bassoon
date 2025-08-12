@@ -1,4 +1,4 @@
-const React = require('react');
+import React from 'react';
 
 function WorkerComponent() {
   const workerRef = React.useRef(null);
@@ -19,4 +19,4 @@ function WorkerComponent() {
   return React.createElement('div', null, 'Worker Component');
 }
 
-module.exports = WorkerComponent;
+export default WorkerComponent;

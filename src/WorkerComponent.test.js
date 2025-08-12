@@ -1,6 +1,7 @@
-const React = require('react');
-const { render } = require('@testing-library/react');
-const WorkerComponent = require('./WorkerComponent');
+import React from 'react';
+import { render } from '@testing-library/react';
+import WorkerComponent from './WorkerComponent';
+import { jest } from '@jest/globals';
 
 test('creates one worker and terminates on unmount', () => {
   const terminate = jest.fn();

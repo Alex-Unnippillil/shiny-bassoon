@@ -1,6 +1,10 @@
-const fs = require('fs');
-const path = require('path');
-const vm = require('vm');
+import fs from 'fs';
+import path from 'path';
+import vm from 'vm';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 test('worker doubles the provided value', (done) => {
   const OriginalWorker = global.Worker;
