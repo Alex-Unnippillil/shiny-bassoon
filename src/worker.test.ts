@@ -1,18 +1,21 @@
-const fs = require('fs');
-const path = require('path');
-const vm = require('vm');
+import fs from 'fs';
+import path from 'path';
+import vm from 'vm';
 
 class MockWorker {
-  constructor(url) {
+  private _onmessage: ((event: { data: unknown }) => void) | null;
+  public onmessage: ((event: { data: unknown }) => void) | null;
+
+  constructor(url: string) {
     const code = fs.readFileSync(path.resolve(__dirname, url), 'utf8');
     const sandbox = {
       self: {
-        postMessage: (data) => {
+        postMessage: (data: unknown) => {
           if (this.onmessage) {
             this.onmessage({ data });
           }
         },
-        onmessage: null,
+        onmessage: null as ((event: { data: unknown }) => void) | null,
       },
     };
     vm.runInNewContext(code, sandbox);
@@ -20,7 +23,7 @@ class MockWorker {
     this.onmessage = null;
   }
 
-  postMessage(data) {
+  postMessage(data: unknown) {
     if (this._onmessage) {
       this._onmessage({ data });
     }
@@ -29,10 +32,10 @@ class MockWorker {
   terminate() {}
 }
 
-function runWorker(input) {
+function runWorker(input: unknown): Promise<unknown> {
   return new Promise((resolve) => {
     const OriginalWorker = global.Worker;
-    global.Worker = MockWorker;
+    global.Worker = MockWorker as unknown as typeof Worker;
     const worker = new Worker('./worker.js');
     worker.onmessage = (event) => {
       resolve(event.data);

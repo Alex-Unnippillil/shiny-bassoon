@@ -1,8 +1,8 @@
-const { createGameStore } = require('./useGameStore');
+import { createGameStore, WorkerLike } from './useGameStore';
 
 describe('useGameStore', () => {
-  let store;
-  let mockWorker;
+  let store: ReturnType<typeof createGameStore>;
+  let mockWorker: WorkerLike & { postMessage: jest.Mock };
 
   beforeEach(() => {
     mockWorker = { postMessage: jest.fn() };
