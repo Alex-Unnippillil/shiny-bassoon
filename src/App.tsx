@@ -1,6 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Box, Button, Typography } from '@mui/material';
-import { Chess } from 'chess.js';
 import { useBoardState, useBoardActions } from './boardStore';
 import type { Piece, WorkerRequest, WorkerResponse } from './types';
 import { INITIAL_FEN } from './constants';
@@ -24,6 +23,7 @@ export default function App(): JSX.Element {
   const { playerMove, aiMove, flipOrientation } = useBoardActions();
   const [selected, setSelected] = useState<string | null>(null);
   const [status, setStatus] = useState('');
+  const [announcement, setAnnouncement] = useState('');
   const squareRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const workerRef = useRef<Worker | null>(null);
 
@@ -35,7 +35,25 @@ export default function App(): JSX.Element {
 
   useEffect(() => {
     const worker = workerRef.current!;
-
+    worker.onmessage = (e: MessageEvent<WorkerResponse>) => {
+      const msg = e.data;
+      switch (msg.type) {
+        case 'AI_MOVE':
+          aiMove(msg.from, msg.to);
+          setAnnouncement(`AI moved ${msg.from} to ${msg.to}`);
+          setStatus('');
+          break;
+        case 'CHECKMATE':
+          setStatus(`Checkmate! ${msg.winner === 'w' ? 'White' : 'Black'} wins.`);
+          break;
+        case 'STALEMATE':
+          setStatus('Stalemate.');
+          break;
+        case 'ERROR':
+          setStatus(msg.message);
+          break;
+        default:
+          break;
       }
     };
     return () => worker.terminate();
@@ -53,7 +71,11 @@ export default function App(): JSX.Element {
     return squares;
   }, [orientation]);
 
-
+  const handleMove = (from: string, to: string): void => {
+    playerMove(from, to);
+    workerRef.current?.postMessage({ type: 'PLAYER_MOVE', from, to });
+    setStatus('AI thinking...');
+    setAnnouncement(`Player moved ${from} to ${to}`);
   };
 
   const handleSquareClick = (square: string): void => {
@@ -149,6 +171,10 @@ export default function App(): JSX.Element {
           );
         })}
       </Box>
+      <Typography data-testid="announcer" aria-live="polite">
+        {announcement}
+      </Typography>
+      {status && <Typography>{status}</Typography>}
       <Button
         variant="contained"
         onClick={handleFlip}
@@ -156,8 +182,6 @@ export default function App(): JSX.Element {
       >
         Flip Board
       </Button>
-
-      
     </Box>
   );
 }
