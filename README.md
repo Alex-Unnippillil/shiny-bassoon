@@ -3,8 +3,8 @@
 Shiny Bassoon demonstrates a simple architecture combining a central store, a Web Worker based AI engine, and React components.
 
 ## Architecture
-- **Store**: Application state lives in a central store so components can access shared data.
-- **Worker-based AI**: Heavy AI logic runs inside a Web Worker (`src/worker.js`) to keep the UI responsive.
+- **Store**: Application state lives in a central store (`src/store/index.tsx`) so components can access shared data.
+- **Worker-based AI**: Heavy AI logic runs inside a Web Worker (`src/aiWorker.ts`) to keep the UI responsive.
 - **React components**: UI components communicate with the store and can post messages directly to the worker.
 
 ## Getting Started
