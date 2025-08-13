@@ -13,38 +13,31 @@ function pieceSymbol(piece: { type: 'P'; color: 'w' | 'b' } | undefined): string
   return symbols[piece.color + piece.type];
 }
 
-interface WorkerMoveMessage {
-  type: 'AI_MOVE';
-  from: string;
-  to: string;
-}
-
-export default function ChessGame(): JSX.Element {
+  export default function ChessGame(): JSX.Element {
   const { board, moves, playerMove, aiMove, undo, reset } = useGameStore();
   const [selected, setSelected] = useState<string | null>(null);
   const workerRef = useRef<Worker | null>(null);
 
-  if (!workerRef.current) {
-    workerRef.current = new Worker(
-      new URL('../aiWorker.ts', import.meta.url),
-    );
-  }
+    if (!workerRef.current) {
+      workerRef.current = new Worker('aiWorker');
+    }
 
-  useEffect(() => {
-    const worker = workerRef.current!;
-
-      }
-    };
-    return () => worker.terminate();
-  }, [aiMove]);
+    useEffect(() => {
+      const worker = workerRef.current!;
+      worker.onmessage = (e: MessageEvent<{ move?: { from: string; to: string } }>) => {
+        const msg = e.data;
+        if (msg.move) {
+          aiMove(msg.move.from, msg.move.to);
+        }
+      };
+      return () => worker.terminate();
+    }, [aiMove]);
 
   const handleSquareClick = (sq: string) => {
     if (selected) {
       playerMove(selected, sq);
       workerRef.current?.postMessage({
-        type: 'PLAYER_MOVE',
-        from: selected,
-        to: sq,
+        move: { from: selected, to: sq },
       });
       setSelected(null);
     } else if (board[sq]) {

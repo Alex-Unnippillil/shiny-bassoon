@@ -1,6 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Box, Button, Typography } from '@mui/material';
-import { Chess } from 'chess.js';
 import { useBoardState, useBoardActions } from './boardStore';
 import type { Piece, WorkerRequest, WorkerResponse } from './types';
 import { INITIAL_FEN } from './constants';
@@ -23,7 +22,8 @@ export default function App(): JSX.Element {
   const { board, orientation } = useBoardState();
   const { playerMove, aiMove, flipOrientation } = useBoardActions();
   const [selected, setSelected] = useState<string | null>(null);
-  const [status, setStatus] = useState('');
+  const [announcement, setAnnouncement] = useState('');
+  const [legalMoves, setLegalMoves] = useState<string[]>([]);
   const squareRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const workerRef = useRef<Worker | null>(null);
 
@@ -35,7 +35,21 @@ export default function App(): JSX.Element {
 
   useEffect(() => {
     const worker = workerRef.current!;
-
+    worker.onmessage = (e: MessageEvent<WorkerResponse>) => {
+      const msg = e.data;
+      switch (msg.type) {
+        case 'AI_MOVE':
+          aiMove(msg.from, msg.to);
+          break;
+        case 'LEGAL_MOVES':
+          setLegalMoves(msg.moves);
+          break;
+        case 'ERROR':
+          setAnnouncement(msg.message);
+          setLegalMoves(msg.legalMoves || []);
+          break;
+        default:
+          break;
       }
     };
     return () => worker.terminate();
@@ -53,15 +67,35 @@ export default function App(): JSX.Element {
     return squares;
   }, [orientation]);
 
-
+  const handleMove = (from: string, to: string): void => {
+    if (!legalMoves.includes(to)) {
+      setAnnouncement('Illegal move');
+      return;
+    }
+    playerMove(from, to);
+    workerRef.current?.postMessage({
+      type: 'PLAYER_MOVE',
+      from,
+      to,
+    } satisfies WorkerRequest);
+    setLegalMoves([]);
   };
 
   const handleSquareClick = (square: string): void => {
     if (selected) {
-      handleMove(selected, square);
-      setSelected(null);
+      if (square === selected) {
+        setSelected(null);
+        setLegalMoves([]);
+      } else {
+        handleMove(selected, square);
+        setSelected(null);
+      }
     } else if (board[square]) {
       setSelected(square);
+      workerRef.current?.postMessage({
+        type: 'GET_LEGAL_MOVES',
+        square,
+      } satisfies WorkerRequest);
     }
   };
 
@@ -120,6 +154,7 @@ export default function App(): JSX.Element {
         {orderedSquares.map((sq, idx) => {
           const piece = board[sq];
           const isDark = Math.floor(idx / 8) % 2 === idx % 2;
+          const highlight = legalMoves.includes(sq);
           return (
             <Box
               key={sq}
@@ -142,6 +177,7 @@ export default function App(): JSX.Element {
                 border: 'none',
                 padding: 0,
                 fontSize: 32,
+                outline: highlight ? '3px solid #ff0' : 'none',
               }}
             >
               {piece && <span className="piece">{pieceSymbol(piece)}</span>}
@@ -156,8 +192,13 @@ export default function App(): JSX.Element {
       >
         Flip Board
       </Button>
+      <Typography
+        aria-live="polite"
+        sx={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)' }}
+      >
+        {announcement}
+      </Typography>
 
-      
     </Box>
   );
 }
