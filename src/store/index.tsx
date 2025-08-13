@@ -1,13 +1,22 @@
 import React, { createContext, useContext, useReducer } from 'react';
-
-type Piece = { type: 'P'; color: 'w' | 'b' };
-type Board = Record<string, Piece>;
+import { Chess } from 'chess.js';
+import { INITIAL_FEN } from '../constants';
+import type { Board, Piece } from '../types';
 
 function initialBoard(): Board {
-  return {
-    e2: { type: 'P', color: 'w' },
-    e7: { type: 'P', color: 'b' },
-  };
+  const game = new Chess(INITIAL_FEN);
+  const board: Board = {};
+  for (const row of game.board()) {
+    for (const piece of row) {
+      if (piece) {
+        board[piece.square] = {
+          type: piece.type.toUpperCase() as Piece['type'],
+          color: piece.color,
+        };
+      }
+    }
+  }
+  return board;
 }
 
 interface State {
