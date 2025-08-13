@@ -30,6 +30,7 @@ export default function ChessGame(): JSX.Element {
   useEffect(() => {
     const worker = workerRef.current!;
 
+    worker.onmessage = (e: MessageEvent<WorkerMoveMessage>) => {
       const move = e.data.move;
       if (move) {
         aiMove(move.from, move.to);
