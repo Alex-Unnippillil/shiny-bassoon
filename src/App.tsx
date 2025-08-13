@@ -1,6 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { Box, Button, Typography } from '@mui/material';
-import { Chess } from 'chess.js';
+import { Box, Button } from '@mui/material';
 import { useBoardState, useBoardActions } from './boardStore';
 import type { Piece, WorkerRequest, WorkerResponse } from './types';
 import { INITIAL_FEN } from './constants';
@@ -8,12 +7,29 @@ import { INITIAL_FEN } from './constants';
 const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
 const ranks = [1, 2, 3, 4, 5, 6, 7, 8];
 
+const pieceNames: Record<Piece['type'], string> = {
+  P: 'pawn',
+  N: 'knight',
+  B: 'bishop',
+  R: 'rook',
+  Q: 'queen',
+  K: 'king',
+};
+
 function pieceSymbol(piece: Piece | undefined): string | null {
   if (!piece) return null;
   const symbols: Record<string, string> = {
     wP: '♙',
-    bP: '♟︎',
+    wN: '♘',
+    wB: '♗',
+    wR: '♖',
+    wQ: '♕',
     wK: '♔',
+    bP: '♟︎',
+    bN: '♞',
+    bB: '♝',
+    bR: '♜',
+    bQ: '♛',
     bK: '♚',
   };
   return symbols[piece.color + piece.type];
@@ -23,10 +39,8 @@ export default function App(): JSX.Element {
   const { board, orientation } = useBoardState();
   const { playerMove, aiMove, flipOrientation } = useBoardActions();
   const [selected, setSelected] = useState<string | null>(null);
-  const [status, setStatus] = useState('');
   const squareRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const workerRef = useRef<Worker | null>(null);
-
 
   if (!workerRef.current) {
     workerRef.current = new Worker(new URL('./aiWorker.ts', import.meta.url));
@@ -35,7 +49,12 @@ export default function App(): JSX.Element {
 
   useEffect(() => {
     const worker = workerRef.current!;
-
+    worker.onmessage = (e: MessageEvent<WorkerResponse>) => {
+      const data = e.data;
+      if (data.type === 'AI_MOVE') {
+        aiMove(data.from, data.to);
+      } else if (data.type === 'ERROR') {
+        // errors can be displayed to user if needed
       }
     };
     return () => worker.terminate();
@@ -53,7 +72,9 @@ export default function App(): JSX.Element {
     return squares;
   }, [orientation]);
 
-
+  const handleMove = (from: string, to: string): void => {
+    playerMove(from, to);
+    workerRef.current?.postMessage({ type: 'PLAYER_MOVE', from, to });
   };
 
   const handleSquareClick = (square: string): void => {
@@ -99,9 +120,7 @@ export default function App(): JSX.Element {
   };
 
   const handleFlip = () => {
-    const newOrientation = orientation === 'white' ? 'black' : 'white';
     flipOrientation();
-    setAnnouncement(`Board orientation is now ${newOrientation} at bottom`);
   };
 
   return (
@@ -130,7 +149,14 @@ export default function App(): JSX.Element {
                 squareRefs.current[sq] = el as HTMLButtonElement | null;
               }}
               tabIndex={0}
-              aria-label={`square ${sq}${piece ? ' with ' + (piece.color === 'w' ? 'white' : 'black') + ' ' + (piece.type === 'P' ? 'pawn' : 'king') : ''}`}
+              aria-label={`square ${sq}${
+                piece
+                  ? ' with ' +
+                    (piece.color === 'w' ? 'white' : 'black') +
+                    ' ' +
+                    pieceNames[piece.type]
+                  : ''
+              }`}
               onClick={() => handleSquareClick(sq)}
               onKeyDown={e => handleKeyDown(sq, e)}
               sx={{
