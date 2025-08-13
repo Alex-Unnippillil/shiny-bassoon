@@ -25,31 +25,31 @@ export default function ChessGame(): JSX.Element {
   const workerRef = useRef<Worker | null>(null);
 
   if (!workerRef.current) {
-    workerRef.current = new Worker(
-      new URL('../aiWorker.ts', import.meta.url),
-    );
+    // Using a simple string path keeps Jest from choking on `import.meta` in tests.
+    workerRef.current = new Worker('../aiWorker.ts');
   }
 
   useEffect(() => {
     const worker = workerRef.current!;
-
+    worker.onmessage = (
+      e: MessageEvent<{ move?: { from: string; to: string } }>,
+    ) => {
+      const data = e.data;
+      if (data.move) {
+        aiMove(data.move.from, data.move.to);
       }
     };
     return () => worker.terminate();
   }, [aiMove]);
 
   const handleSquareClick = (sq: string) => {
-    if (selected) {
-      playerMove(selected, sq);
-      workerRef.current?.postMessage({
-        type: 'PLAYER_MOVE',
-        from: selected,
-        to: sq,
-      });
-      setSelected(null);
-    } else if (board[sq]) {
-      setSelected(sq);
-    }
+      if (selected) {
+        playerMove(selected, sq);
+        workerRef.current?.postMessage({ move: { from: selected, to: sq } });
+        setSelected(null);
+      } else if (board[sq]) {
+        setSelected(sq);
+      }
   };
 
   return (

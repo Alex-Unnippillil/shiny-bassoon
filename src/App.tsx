@@ -1,6 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Box, Button, Typography } from '@mui/material';
-import { Chess } from 'chess.js';
 import { useBoardState, useBoardActions } from './boardStore';
 import type { Piece, WorkerRequest, WorkerResponse } from './types';
 import { INITIAL_FEN } from './constants';
@@ -23,19 +22,44 @@ export default function App(): JSX.Element {
   const { board, orientation } = useBoardState();
   const { playerMove, aiMove, flipOrientation } = useBoardActions();
   const [selected, setSelected] = useState<string | null>(null);
+  const [announcement, setAnnouncement] = useState('');
   const [status, setStatus] = useState('');
+  const [legalMoves, setLegalMoves] = useState<string[]>([]);
   const squareRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const workerRef = useRef<Worker | null>(null);
 
-
   if (!workerRef.current) {
     workerRef.current = new Worker(new URL('./aiWorker.ts', import.meta.url));
-    workerRef.current.postMessage({ type: 'INIT', fen: INITIAL_FEN } satisfies WorkerRequest);
+    workerRef.current.postMessage({
+      type: 'INIT',
+      fen: INITIAL_FEN,
+    } satisfies WorkerRequest);
   }
 
   useEffect(() => {
     const worker = workerRef.current!;
-
+    worker.onmessage = (e: MessageEvent<WorkerResponse>) => {
+      const data = e.data;
+      switch (data.type) {
+        case 'AI_MOVE':
+          aiMove(data.from, data.to);
+          setAnnouncement(`AI moved ${data.from} to ${data.to}`);
+          break;
+        case 'LEGAL_MOVES':
+          setLegalMoves(data.moves);
+          break;
+        case 'CHECKMATE':
+          setStatus(`Checkmate! ${data.winner === 'w' ? 'White' : 'Black'} wins`);
+          break;
+        case 'STALEMATE':
+          setStatus('Stalemate');
+          break;
+        case 'ERROR':
+          setAnnouncement(data.message);
+          if (data.legalMoves) setLegalMoves(data.legalMoves);
+          break;
+        default:
+          break;
       }
     };
     return () => worker.terminate();
@@ -53,15 +77,29 @@ export default function App(): JSX.Element {
     return squares;
   }, [orientation]);
 
-
+  const handleMove = (from: string, to: string): void => {
+    playerMove(from, to);
+    setAnnouncement(`Player moved ${from} to ${to}`);
+    workerRef.current?.postMessage({ type: 'PLAYER_MOVE', from, to });
   };
 
   const handleSquareClick = (square: string): void => {
     if (selected) {
+      if (square === selected) {
+        setSelected(null);
+        setLegalMoves([]);
+        return;
+      }
+      if (legalMoves.length > 0 && !legalMoves.includes(square)) {
+        setAnnouncement('Illegal move');
+        return;
+      }
       handleMove(selected, square);
       setSelected(null);
+      setLegalMoves([]);
     } else if (board[square]) {
       setSelected(square);
+      workerRef.current?.postMessage({ type: 'GET_LEGAL_MOVES', square });
     }
   };
 
@@ -120,6 +158,7 @@ export default function App(): JSX.Element {
         {orderedSquares.map((sq, idx) => {
           const piece = board[sq];
           const isDark = Math.floor(idx / 8) % 2 === idx % 2;
+          const isLegalTarget = legalMoves.includes(sq);
           return (
             <Box
               key={sq}
@@ -142,6 +181,7 @@ export default function App(): JSX.Element {
                 border: 'none',
                 padding: 0,
                 fontSize: 32,
+                outline: isLegalTarget ? '2px solid #f00' : 'none',
               }}
             >
               {piece && <span className="piece">{pieceSymbol(piece)}</span>}
@@ -156,8 +196,10 @@ export default function App(): JSX.Element {
       >
         Flip Board
       </Button>
-
-      
+      <Typography data-testid="announcer" aria-live="polite">
+        {announcement}
+      </Typography>
+      {status && <Typography>{status}</Typography>}
     </Box>
   );
 }
