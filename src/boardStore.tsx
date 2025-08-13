@@ -29,7 +29,8 @@ type Orientation = 'white' | 'black';
 type Action =
   | { type: 'PLAYER_MOVE'; from: string; to: string }
   | { type: 'AI_MOVE'; from: string; to: string }
-  | { type: 'FLIP_ORIENTATION' };
+  | { type: 'FLIP_ORIENTATION' }
+  | { type: 'SET_BOARD'; board: Board };
 
 interface BoardState {
   board: Board;
@@ -40,6 +41,7 @@ interface BoardActions {
   playerMove: (from: string, to: string) => void;
   aiMove: (from: string, to: string) => void;
   flipOrientation: () => void;
+  setBoard: (board: Board) => void;
 }
 
 function reducer(state: BoardState, action: Action): BoardState {
@@ -52,6 +54,8 @@ function reducer(state: BoardState, action: Action): BoardState {
         ...state,
         orientation: state.orientation === 'white' ? 'black' : 'white',
       };
+    case 'SET_BOARD':
+      return { ...state, board: action.board };
     default:
       return state;
   }
@@ -72,6 +76,7 @@ export function BoardProvider({ children }: { children: ReactNode }): JSX.Elemen
       playerMove: (from, to) => dispatch({ type: 'PLAYER_MOVE', from, to }),
       aiMove: (from, to) => dispatch({ type: 'AI_MOVE', from, to }),
       flipOrientation: () => dispatch({ type: 'FLIP_ORIENTATION' }),
+      setBoard: board => dispatch({ type: 'SET_BOARD', board }),
     }),
     [dispatch],
   );
