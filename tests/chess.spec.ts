@@ -27,3 +27,11 @@ test('board has grid roles and announces moves and orientation', async ({ page }
   await expect(announcer).toHaveText(/Board orientation is now (white|black) at bottom/);
 });
 
+test('renders game controls', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByRole('button', { name: 'Undo' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Reset' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Export PGN' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Import FEN' })).toBeVisible();
+});
+
