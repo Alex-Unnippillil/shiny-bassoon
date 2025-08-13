@@ -1,6 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Box, Button, Typography } from '@mui/material';
-import { Chess } from 'chess.js';
 import { useBoardState, useBoardActions } from './boardStore';
 import type { Piece, WorkerRequest, WorkerResponse } from './types';
 import { INITIAL_FEN } from './constants';
@@ -23,7 +22,7 @@ export default function App(): JSX.Element {
   const { board, orientation } = useBoardState();
   const { playerMove, aiMove, flipOrientation } = useBoardActions();
   const [selected, setSelected] = useState<string | null>(null);
-  const [status, setStatus] = useState('');
+  const [announcement, setAnnouncement] = useState('');
   const squareRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const workerRef = useRef<Worker | null>(null);
 
@@ -35,7 +34,24 @@ export default function App(): JSX.Element {
 
   useEffect(() => {
     const worker = workerRef.current!;
-
+    worker.onmessage = (e: MessageEvent<WorkerResponse>) => {
+      const data = e.data;
+      switch (data.type) {
+        case 'AI_MOVE':
+          aiMove(data.from, data.to);
+          setAnnouncement(`AI moved ${data.from} to ${data.to}`);
+          break;
+        case 'CHECKMATE':
+          setAnnouncement(`Checkmate! ${data.winner === 'w' ? 'White' : 'Black'} wins.`);
+          break;
+        case 'STALEMATE':
+          setAnnouncement('Stalemate');
+          break;
+        case 'ERROR':
+          setAnnouncement(data.message);
+          break;
+        default:
+          break;
       }
     };
     return () => worker.terminate();
@@ -53,8 +69,13 @@ export default function App(): JSX.Element {
     return squares;
   }, [orientation]);
 
-
-  };
+  function handleMove(from: string, to: string): void {
+    playerMove(from, to);
+    workerRef.current?.postMessage(
+      { type: 'PLAYER_MOVE', from, to } satisfies WorkerRequest,
+    );
+    setAnnouncement(`Player moved ${from} to ${to}`);
+  }
 
   const handleSquareClick = (square: string): void => {
     if (selected) {
@@ -148,16 +169,17 @@ export default function App(): JSX.Element {
             </Box>
           );
         })}
+        </Box>
+        <Typography data-testid="announcer" aria-live="polite">
+          {announcement}
+        </Typography>
+        <Button
+          variant="contained"
+          onClick={handleFlip}
+          aria-label="Toggle board orientation"
+        >
+          Flip Board
+        </Button>
       </Box>
-      <Button
-        variant="contained"
-        onClick={handleFlip}
-        aria-label="Toggle board orientation"
-      >
-        Flip Board
-      </Button>
-
-      
-    </Box>
-  );
-}
+    );
+  }
