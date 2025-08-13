@@ -14,9 +14,7 @@ function pieceSymbol(piece: { type: 'P'; color: 'w' | 'b' } | undefined): string
 }
 
 interface WorkerMoveMessage {
-  type: 'AI_MOVE';
-  from: string;
-  to: string;
+  move: { from: string; to: string };
 }
 
 export default function ChessGame(): JSX.Element {
@@ -24,16 +22,15 @@ export default function ChessGame(): JSX.Element {
   const [selected, setSelected] = useState<string | null>(null);
   const workerRef = useRef<Worker | null>(null);
 
-  if (!workerRef.current) {
-    workerRef.current = new Worker(
-      new URL('../aiWorker.ts', import.meta.url),
-    );
+  if (!workerRef.current && typeof Worker !== 'undefined') {
+    workerRef.current = new Worker(new URL('../aiWorker.ts', window.location.href));
   }
 
   useEffect(() => {
     const worker = workerRef.current!;
-
-      }
+    worker.onmessage = (e: MessageEvent<WorkerMoveMessage>) => {
+      const { from, to } = e.data.move;
+      aiMove(from, to);
     };
     return () => worker.terminate();
   }, [aiMove]);
@@ -42,9 +39,7 @@ export default function ChessGame(): JSX.Element {
     if (selected) {
       playerMove(selected, sq);
       workerRef.current?.postMessage({
-        type: 'PLAYER_MOVE',
-        from: selected,
-        to: sq,
+        move: { from: selected, to: sq },
       });
       setSelected(null);
     } else if (board[sq]) {
