@@ -1,13 +1,26 @@
 import React, { createContext, useContext, useReducer } from 'react';
-
-type Piece = { type: 'P'; color: 'w' | 'b' };
-type Board = Record<string, Piece>;
+import { Chess } from 'chess.js';
+import { INITIAL_FEN } from '../constants';
+import type { Piece, Board } from '../types';
 
 function initialBoard(): Board {
-  return {
-    e2: { type: 'P', color: 'w' },
-    e7: { type: 'P', color: 'b' },
-  };
+  const chess = new Chess(INITIAL_FEN);
+  const board: Board = {};
+  const files = 'abcdefgh';
+  const grid = chess.board();
+  for (let r = 0; r < 8; r++) {
+    for (let c = 0; c < 8; c++) {
+      const piece = grid[r][c];
+      if (piece) {
+        const square = `${files[c]}${8 - r}`;
+        board[square] = {
+          type: piece.type.toUpperCase() as Piece['type'],
+          color: piece.color,
+        };
+      }
+    }
+  }
+  return board;
 }
 
 interface State {

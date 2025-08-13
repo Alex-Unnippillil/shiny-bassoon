@@ -1,22 +1,31 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { useGameStore } from '../store';
+import type { Piece } from '../types';
 
 const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
 const ranks = [8, 7, 6, 5, 4, 3, 2, 1];
 
-function pieceSymbol(piece: { type: 'P'; color: 'w' | 'b' } | undefined): string | null {
+function pieceSymbol(piece: Piece | undefined): string | null {
   if (!piece) return null;
   const symbols: Record<string, string> = {
     wP: '♙',
     bP: '♟︎',
+    wK: '♔',
+    bK: '♚',
+    wQ: '♕',
+    bQ: '♛',
+    wR: '♖',
+    bR: '♜',
+    wB: '♗',
+    bB: '♝',
+    wN: '♘',
+    bN: '♞',
   };
   return symbols[piece.color + piece.type];
 }
 
 interface WorkerMoveMessage {
-  type: 'AI_MOVE';
-  from: string;
-  to: string;
+  move: { from: string; to: string };
 }
 
 export default function ChessGame(): JSX.Element {
@@ -25,15 +34,16 @@ export default function ChessGame(): JSX.Element {
   const workerRef = useRef<Worker | null>(null);
 
   if (!workerRef.current) {
-    workerRef.current = new Worker(
-      new URL('../aiWorker.ts', import.meta.url),
-    );
+    workerRef.current = new Worker('../aiWorker.ts');
   }
 
   useEffect(() => {
     const worker = workerRef.current!;
-
-      }
+    worker.onmessage = (e: { data: WorkerMoveMessage }) => {
+      const {
+        move: { from, to },
+      } = e.data;
+      aiMove(from, to);
     };
     return () => worker.terminate();
   }, [aiMove]);
@@ -42,9 +52,7 @@ export default function ChessGame(): JSX.Element {
     if (selected) {
       playerMove(selected, sq);
       workerRef.current?.postMessage({
-        type: 'PLAYER_MOVE',
-        from: selected,
-        to: sq,
+        move: { from: selected, to: sq },
       });
       setSelected(null);
     } else if (board[sq]) {

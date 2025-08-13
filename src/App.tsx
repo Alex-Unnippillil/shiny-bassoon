@@ -1,6 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Box, Button, Typography } from '@mui/material';
-import { Chess } from 'chess.js';
 import { useBoardState, useBoardActions } from './boardStore';
 import type { Piece, WorkerRequest, WorkerResponse } from './types';
 import { INITIAL_FEN } from './constants';
@@ -15,9 +14,26 @@ function pieceSymbol(piece: Piece | undefined): string | null {
     bP: '♟︎',
     wK: '♔',
     bK: '♚',
+    wQ: '♕',
+    bQ: '♛',
+    wR: '♖',
+    bR: '♜',
+    wB: '♗',
+    bB: '♝',
+    wN: '♘',
+    bN: '♞',
   };
   return symbols[piece.color + piece.type];
 }
+
+const pieceNames: Record<Piece['type'], string> = {
+  P: 'pawn',
+  K: 'king',
+  Q: 'queen',
+  R: 'rook',
+  B: 'bishop',
+  N: 'knight',
+};
 
 export default function App(): JSX.Element {
   const { board, orientation } = useBoardState();
@@ -35,7 +51,22 @@ export default function App(): JSX.Element {
 
   useEffect(() => {
     const worker = workerRef.current!;
-
+    worker.onmessage = (e: { data: WorkerResponse }) => {
+      const data = e.data;
+      switch (data.type) {
+        case 'AI_MOVE':
+          aiMove(data.from, data.to);
+          setStatus(`AI moved ${data.from} to ${data.to}`);
+          break;
+        case 'CHECKMATE':
+          setStatus(`Checkmate: ${data.winner} wins`);
+          break;
+        case 'STALEMATE':
+          setStatus('Stalemate');
+          break;
+        case 'ERROR':
+          setStatus(data.message);
+          break;
       }
     };
     return () => worker.terminate();
@@ -53,8 +84,11 @@ export default function App(): JSX.Element {
     return squares;
   }, [orientation]);
 
-
-  };
+  function handleMove(from: string, to: string): void {
+    playerMove(from, to);
+    workerRef.current?.postMessage({ type: 'PLAYER_MOVE', from, to } satisfies WorkerRequest);
+    setStatus(`Player moved ${from} to ${to}`);
+  }
 
   const handleSquareClick = (square: string): void => {
     if (selected) {
@@ -101,7 +135,7 @@ export default function App(): JSX.Element {
   const handleFlip = () => {
     const newOrientation = orientation === 'white' ? 'black' : 'white';
     flipOrientation();
-    setAnnouncement(`Board orientation is now ${newOrientation} at bottom`);
+    setStatus(`Board orientation is now ${newOrientation} at bottom`);
   };
 
   return (
@@ -130,7 +164,15 @@ export default function App(): JSX.Element {
                 squareRefs.current[sq] = el as HTMLButtonElement | null;
               }}
               tabIndex={0}
-              aria-label={`square ${sq}${piece ? ' with ' + (piece.color === 'w' ? 'white' : 'black') + ' ' + (piece.type === 'P' ? 'pawn' : 'king') : ''}`}
+              aria-label={`square ${sq}${
+                piece
+                  ?
+                      ' with ' +
+                      (piece.color === 'w' ? 'white' : 'black') +
+                      ' ' +
+                      pieceNames[piece.type]
+                  : ''
+              }`}
               onClick={() => handleSquareClick(sq)}
               onKeyDown={e => handleKeyDown(sq, e)}
               sx={{
@@ -156,8 +198,10 @@ export default function App(): JSX.Element {
       >
         Flip Board
       </Button>
+      <Typography data-testid="announcer" aria-live="polite">
+        {status}
+      </Typography>
 
-      
     </Box>
   );
 }
