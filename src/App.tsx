@@ -1,12 +1,25 @@
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, {
+  useState,
+  useMemo,
+  useRef,
+  useEffect,
+} from 'react';
 import { Box, Button, Typography } from '@mui/material';
-import { Chess } from 'chess.js';
 import { useBoardState, useBoardActions } from './boardStore';
 import type { Piece, WorkerRequest, WorkerResponse } from './types';
 import { INITIAL_FEN } from './constants';
 
 const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
 const ranks = [1, 2, 3, 4, 5, 6, 7, 8];
+
+const pieceNames: Record<Piece['type'], string> = {
+  P: 'pawn',
+  K: 'king',
+  Q: 'queen',
+  R: 'rook',
+  B: 'bishop',
+  N: 'knight',
+};
 
 function pieceSymbol(piece: Piece | undefined): string | null {
   if (!piece) return null;
@@ -15,6 +28,14 @@ function pieceSymbol(piece: Piece | undefined): string | null {
     bP: '♟︎',
     wK: '♔',
     bK: '♚',
+    wQ: '♕',
+    bQ: '♛',
+    wR: '♖',
+    bR: '♜',
+    wB: '♗',
+    bB: '♝',
+    wN: '♘',
+    bN: '♞',
   };
   return symbols[piece.color + piece.type];
 }
@@ -23,19 +44,40 @@ export default function App(): JSX.Element {
   const { board, orientation } = useBoardState();
   const { playerMove, aiMove, flipOrientation } = useBoardActions();
   const [selected, setSelected] = useState<string | null>(null);
-  const [status, setStatus] = useState('');
+  const [announcement, setAnnouncement] = useState('');
   const squareRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const workerRef = useRef<Worker | null>(null);
 
-
   if (!workerRef.current) {
     workerRef.current = new Worker(new URL('./aiWorker.ts', import.meta.url));
-    workerRef.current.postMessage({ type: 'INIT', fen: INITIAL_FEN } satisfies WorkerRequest);
+    workerRef.current.postMessage({
+      type: 'INIT',
+      fen: INITIAL_FEN,
+    } satisfies WorkerRequest);
   }
 
   useEffect(() => {
     const worker = workerRef.current!;
-
+    worker.onmessage = (e: MessageEvent<WorkerResponse>) => {
+      const data = e.data;
+      switch (data.type) {
+        case 'AI_MOVE':
+          aiMove(data.from, data.to);
+          setAnnouncement(`AI moved ${data.from} to ${data.to}`);
+          break;
+        case 'CHECKMATE':
+          setAnnouncement(
+            `Checkmate, ${data.winner === 'w' ? 'white' : 'black'} wins`,
+          );
+          break;
+        case 'STALEMATE':
+          setAnnouncement('Stalemate');
+          break;
+        case 'ERROR':
+          setAnnouncement(data.message);
+          break;
+        default:
+          break;
       }
     };
     return () => worker.terminate();
@@ -44,16 +86,21 @@ export default function App(): JSX.Element {
   const orderedSquares = useMemo(() => {
     const fileOrder = orientation === 'white' ? files : [...files].reverse();
     const rankOrder = orientation === 'white' ? [...ranks].reverse() : ranks;
-    const squares = [];
+    const squares: string[] = [];
     for (const r of rankOrder) {
-      for (const f of fileOrder) {
-        squares.push(f + r);
-      }
+      for (const f of fileOrder) squares.push(f + r);
     }
     return squares;
   }, [orientation]);
 
-
+  const handleMove = (from: string, to: string): void => {
+    playerMove(from, to);
+    workerRef.current?.postMessage({
+      type: 'PLAYER_MOVE',
+      from,
+      to,
+    } satisfies WorkerRequest);
+    setAnnouncement(`Player moved ${from} to ${to}`);
   };
 
   const handleSquareClick = (square: string): void => {
@@ -98,7 +145,7 @@ export default function App(): JSX.Element {
     }
   };
 
-  const handleFlip = () => {
+  const handleFlip = (): void => {
     const newOrientation = orientation === 'white' ? 'black' : 'white';
     flipOrientation();
     setAnnouncement(`Board orientation is now ${newOrientation} at bottom`);
@@ -114,7 +161,7 @@ export default function App(): JSX.Element {
           width: '100%',
           maxWidth: 400,
           aspectRatio: '1 / 1',
-          border: '1px solid #333'
+          border: '1px solid #333',
         }}
       >
         {orderedSquares.map((sq, idx) => {
@@ -126,11 +173,15 @@ export default function App(): JSX.Element {
               component="button"
               data-square={sq}
               role="gridcell"
-              ref={(el) => {
+              ref={el => {
                 squareRefs.current[sq] = el as HTMLButtonElement | null;
               }}
               tabIndex={0}
-              aria-label={`square ${sq}${piece ? ' with ' + (piece.color === 'w' ? 'white' : 'black') + ' ' + (piece.type === 'P' ? 'pawn' : 'king') : ''}`}
+              aria-label={`square ${sq}${
+                piece
+                  ? ' with ' + (piece.color === 'w' ? 'white' : 'black') + ' ' + pieceNames[piece.type]
+                  : ''
+              }`}
               onClick={() => handleSquareClick(sq)}
               onKeyDown={e => handleKeyDown(sq, e)}
               sx={{
@@ -156,8 +207,13 @@ export default function App(): JSX.Element {
       >
         Flip Board
       </Button>
-
-      
+      <Typography
+        data-testid="announcer"
+        sx={{ position: 'absolute', left: -9999, top: 'auto', width: 1, height: 1, overflow: 'hidden' }}
+      >
+        {announcement}
+      </Typography>
     </Box>
   );
 }
+
