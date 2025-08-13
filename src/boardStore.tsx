@@ -5,15 +5,27 @@ import React, {
   useMemo,
   ReactNode,
 } from 'react';
-import type { Board } from './types';
+import { Chess } from 'chess.js';
+import { INITIAL_FEN } from './constants';
+import type { Board, Piece } from './types';
+
+const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
 
 function initialBoard(): Board {
-  return {
-    a8: { type: 'K', color: 'b' },
-    e7: { type: 'P', color: 'b' },
-    e2: { type: 'P', color: 'w' },
-    h1: { type: 'K', color: 'w' },
-  };
+  const chess = new Chess(INITIAL_FEN);
+  const board: Board = {};
+  chess.board().forEach((row, rowIdx) => {
+    row.forEach((piece, colIdx) => {
+      if (piece) {
+        const square = files[colIdx] + (8 - rowIdx);
+        board[square] = {
+          type: piece.type.toUpperCase() as Piece['type'],
+          color: piece.color,
+        };
+      }
+    });
+  });
+  return board;
 }
 
 function movePiece(board: Board, from: string, to: string): Board {

@@ -24,15 +24,16 @@ export default function ChessGame(): JSX.Element {
   const [selected, setSelected] = useState<string | null>(null);
   const workerRef = useRef<Worker | null>(null);
 
-  if (!workerRef.current) {
-    workerRef.current = new Worker(
-      new URL('../aiWorker.ts', import.meta.url),
-    );
-  }
+    if (!workerRef.current) {
+      workerRef.current = new Worker('../aiWorker.ts');
+    }
 
   useEffect(() => {
     const worker = workerRef.current!;
-
+    worker.onmessage = (e: MessageEvent<WorkerMoveMessage>) => {
+      const msg = e.data;
+      if (msg.type === 'AI_MOVE') {
+        aiMove(msg.from, msg.to);
       }
     };
     return () => worker.terminate();

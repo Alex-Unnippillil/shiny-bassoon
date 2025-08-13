@@ -39,9 +39,11 @@ describe('ChessGame', () => {
     fireEvent.click(from);
     fireEvent.click(to);
 
-    expect(mockWorker.postMessage).toHaveBeenCalledWith({
-      move: { from: 'e2', to: 'e4' },
-    });
+      expect(mockWorker.postMessage).toHaveBeenCalledWith({
+        type: 'PLAYER_MOVE',
+        from: 'e2',
+        to: 'e4',
+      });
     expect(getByTestId('move-list')).toHaveTextContent('e4');
     expect(
       container.querySelector('[data-square="e4"] .piece')
@@ -71,11 +73,11 @@ describe('ChessGame', () => {
     fireEvent.click(from);
     fireEvent.click(to);
 
-    act(() => {
-      mockWorker.onmessage?.({
-        data: { move: { from: 'e7', to: 'e5' } },
+      act(() => {
+        mockWorker.onmessage?.({
+          data: { type: 'AI_MOVE', from: 'e7', to: 'e5' },
+        });
       });
-    });
 
     expect(
       container.querySelector('[data-square="e5"] .piece')

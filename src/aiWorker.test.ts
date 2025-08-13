@@ -103,3 +103,14 @@ test('reports stalemate', async () => {
   const res = await post(worker, { type: 'PLAYER_MOVE', from: 'a2', to: 'a3' });
   expect(res).toEqual({ type: 'STALEMATE' });
 });
+
+test('handles non-pawn move', async () => {
+  const worker = createWorker();
+  worker.postMessage({
+    type: 'INIT',
+    fen: '8/8/8/8/8/8/2k5/7K w - - 0 1',
+  });
+  const res = await post(worker, { type: 'PLAYER_MOVE', from: 'h1', to: 'g1' });
+  expect(res.type).toBe('AI_MOVE');
+  expect(res.from).toBe('c2');
+});
