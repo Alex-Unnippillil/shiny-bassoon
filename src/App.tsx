@@ -1,7 +1,14 @@
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, {
+  useState,
+  useMemo,
+  useRef,
+  useEffect,
+  useCallback,
+} from 'react';
 import { Box, Button, Typography } from '@mui/material';
 import { Chess } from 'chess.js';
 import { useBoardState, useBoardActions } from './boardStore';
+import useGameStore from './useGameStore';
 import type { Piece, WorkerRequest, WorkerResponse } from './types';
 import { INITIAL_FEN } from './constants';
 
@@ -22,29 +29,43 @@ function pieceSymbol(piece: Piece | undefined): string | null {
 export default function App(): JSX.Element {
   const { board, orientation } = useBoardState();
   const { playerMove, aiMove, flipOrientation } = useBoardActions();
+  const { exportPGN, importFEN, fen, addMove, setFen } = useGameStore();
+
   const [selected, setSelected] = useState<string | null>(null);
-  const [status, setStatus] = useState('');
+  const [announcement, setAnnouncement] = useState('');
+  const [fenInput, setFenInput] = useState('');
+
   const squareRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const workerRef = useRef<Worker | null>(null);
-
+  const gameRef = useRef(new Chess(fen || INITIAL_FEN));
 
   if (!workerRef.current) {
     workerRef.current = new Worker(new URL('./aiWorker.ts', import.meta.url));
-    workerRef.current.postMessage({ type: 'INIT', fen: INITIAL_FEN } satisfies WorkerRequest);
+    workerRef.current.postMessage({
+      type: 'INIT',
+      fen: fen || INITIAL_FEN,
+    } satisfies WorkerRequest);
   }
 
   useEffect(() => {
     const worker = workerRef.current!;
-
+    worker.onmessage = (e: MessageEvent<WorkerResponse>) => {
+      const data = e.data;
+      if (data.type === 'AI_MOVE') {
+        aiMove(data.from, data.to);
+        gameRef.current.move({ from: data.from, to: data.to, promotion: 'q' });
+        addMove(`${data.from}${data.to}`);
+        setFen(gameRef.current.fen());
+        setAnnouncement(`AI moved ${data.from} to ${data.to}`);
       }
     };
     return () => worker.terminate();
-  }, [aiMove]);
+  }, [aiMove, addMove, setFen]);
 
   const orderedSquares = useMemo(() => {
     const fileOrder = orientation === 'white' ? files : [...files].reverse();
     const rankOrder = orientation === 'white' ? [...ranks].reverse() : ranks;
-    const squares = [];
+    const squares: string[] = [];
     for (const r of rankOrder) {
       for (const f of fileOrder) {
         squares.push(f + r);
@@ -53,7 +74,18 @@ export default function App(): JSX.Element {
     return squares;
   }, [orientation]);
 
-
+  const handleMove = (from: string, to: string): void => {
+    const move = gameRef.current.move({ from, to, promotion: 'q' });
+    if (!move) return;
+    playerMove(from, to);
+    addMove(`${from}${to}`);
+    setFen(gameRef.current.fen());
+    setAnnouncement(`Player moved ${from} to ${to}`);
+    workerRef.current?.postMessage({
+      type: 'PLAYER_MOVE',
+      from,
+      to,
+    } satisfies WorkerRequest);
   };
 
   const handleSquareClick = (square: string): void => {
@@ -104,6 +136,30 @@ export default function App(): JSX.Element {
     setAnnouncement(`Board orientation is now ${newOrientation} at bottom`);
   };
 
+  const handleDownload = useCallback(() => {
+    const pgn = exportPGN();
+    const blob = new Blob([pgn], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'game.pgn';
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [exportPGN]);
+
+  const handleImport = useCallback(() => {
+    if (fenInput) {
+      importFEN(fenInput);
+      setFen(fenInput);
+      gameRef.current = new Chess(fenInput);
+      workerRef.current?.postMessage({
+        type: 'INIT',
+        fen: fenInput,
+      } satisfies WorkerRequest);
+      setFenInput('');
+    }
+  }, [fenInput, importFEN, setFen]);
+
   return (
     <Box display="flex" flexDirection="column" alignItems="center" gap={2}>
       <Box
@@ -114,7 +170,7 @@ export default function App(): JSX.Element {
           width: '100%',
           maxWidth: 400,
           aspectRatio: '1 / 1',
-          border: '1px solid #333'
+          border: '1px solid #333',
         }}
       >
         {orderedSquares.map((sq, idx) => {
@@ -130,9 +186,16 @@ export default function App(): JSX.Element {
                 squareRefs.current[sq] = el as HTMLButtonElement | null;
               }}
               tabIndex={0}
-              aria-label={`square ${sq}${piece ? ' with ' + (piece.color === 'w' ? 'white' : 'black') + ' ' + (piece.type === 'P' ? 'pawn' : 'king') : ''}`}
+              aria-label={`square ${sq}${
+                piece
+                  ? ' with ' +
+                    (piece.color === 'w' ? 'white' : 'black') +
+                    ' ' +
+                    (piece.type === 'P' ? 'pawn' : 'king')
+                  : ''
+              }`}
               onClick={() => handleSquareClick(sq)}
-              onKeyDown={e => handleKeyDown(sq, e)}
+              onKeyDown={(e) => handleKeyDown(sq, e)}
               sx={{
                 backgroundColor: isDark ? '#769656' : '#eeeed2',
                 color: '#000',
@@ -156,8 +219,23 @@ export default function App(): JSX.Element {
       >
         Flip Board
       </Button>
-
-      
+      <Box display="flex" gap={1} alignItems="center">
+        <Button variant="contained" onClick={handleDownload}>
+          Download PGN
+        </Button>
+        <input
+          value={fenInput}
+          onChange={(e) => setFenInput(e.target.value)}
+          placeholder="Enter FEN"
+        />
+        <Button variant="contained" onClick={handleImport}>
+          Load FEN
+        </Button>
+      </Box>
+      <Typography data-testid="announcer" role="status" aria-live="polite">
+        {announcement}
+      </Typography>
     </Box>
   );
 }
+
