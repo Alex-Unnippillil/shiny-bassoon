@@ -22,14 +22,16 @@ export default function ChessGame(): JSX.Element {
   const [selected, setSelected] = useState<string | null>(null);
   const workerRef = useRef<Worker | null>(null);
 
-  if (!workerRef.current) {
+  if (!workerRef.current && typeof Worker !== 'undefined') {
     // path is irrelevant for the mocked worker in tests
     workerRef.current = new Worker('');
   }
 
   useEffect(() => {
-    const worker = workerRef.current!;
+    const worker = workerRef.current;
+    if (!worker) return;
 
+    worker.onmessage = (e: MessageEvent<WorkerMoveMessage>) => {
       const move = e.data.move;
       if (move) {
         aiMove(move.from, move.to);
