@@ -1,6 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Box, Button, Typography } from '@mui/material';
-import { Chess } from 'chess.js';
 import { useBoardState, useBoardActions } from './boardStore';
 import type { Piece, WorkerRequest, WorkerResponse } from './types';
 import { INITIAL_FEN } from './constants';
@@ -23,7 +22,8 @@ export default function App(): JSX.Element {
   const { board, orientation } = useBoardState();
   const { playerMove, aiMove, flipOrientation } = useBoardActions();
   const [selected, setSelected] = useState<string | null>(null);
-  const [status, setStatus] = useState('');
+  const [announcement, setAnnouncement] = useState('');
+  const [legalMoves, setLegalMoves] = useState<string[]>([]);
   const squareRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const workerRef = useRef<Worker | null>(null);
 
@@ -35,7 +35,30 @@ export default function App(): JSX.Element {
 
   useEffect(() => {
     const worker = workerRef.current!;
-
+    worker.onmessage = (e: MessageEvent<WorkerResponse>) => {
+      const msg = e.data;
+      switch (msg.type) {
+        case 'AI_MOVE':
+          aiMove(msg.from, msg.to);
+          setAnnouncement(`AI moved ${msg.from} to ${msg.to}`);
+          break;
+        case 'LEGAL_MOVES':
+          setLegalMoves(msg.moves);
+          break;
+        case 'CHECKMATE':
+          setAnnouncement(
+            `Checkmate, ${msg.winner === 'w' ? 'white' : 'black'} wins`,
+          );
+          break;
+        case 'STALEMATE':
+          setAnnouncement('Stalemate');
+          break;
+        case 'ERROR':
+          setAnnouncement(msg.message);
+          if (msg.legalMoves) setLegalMoves(msg.legalMoves);
+          break;
+        default:
+          break;
       }
     };
     return () => worker.terminate();
@@ -53,15 +76,35 @@ export default function App(): JSX.Element {
     return squares;
   }, [orientation]);
 
-
+  const handleMove = (from: string, to: string): boolean => {
+    if (!legalMoves.includes(to)) {
+      setAnnouncement('Illegal move');
+      return false;
+    }
+    playerMove(from, to);
+    setAnnouncement(`Player moved ${from} to ${to}`);
+    workerRef.current?.postMessage({ type: 'PLAYER_MOVE', from, to });
+    setLegalMoves([]);
+    return true;
   };
 
   const handleSquareClick = (square: string): void => {
     if (selected) {
-      handleMove(selected, square);
-      setSelected(null);
+      if (selected === square) {
+        setSelected(null);
+        setLegalMoves([]);
+        return;
+      }
+      const moved = handleMove(selected, square);
+      if (moved) {
+        setSelected(null);
+      }
     } else if (board[square]) {
       setSelected(square);
+      workerRef.current?.postMessage({
+        type: 'GET_LEGAL_MOVES',
+        square,
+      });
     }
   };
 
@@ -120,6 +163,7 @@ export default function App(): JSX.Element {
         {orderedSquares.map((sq, idx) => {
           const piece = board[sq];
           const isDark = Math.floor(idx / 8) % 2 === idx % 2;
+          const isLegal = legalMoves.includes(sq);
           return (
             <Box
               key={sq}
@@ -130,20 +174,31 @@ export default function App(): JSX.Element {
                 squareRefs.current[sq] = el as HTMLButtonElement | null;
               }}
               tabIndex={0}
-              aria-label={`square ${sq}${piece ? ' with ' + (piece.color === 'w' ? 'white' : 'black') + ' ' + (piece.type === 'P' ? 'pawn' : 'king') : ''}`}
+              aria-label={`square ${sq}${
+                piece
+                  ? ' with ' +
+                    (piece.color === 'w' ? 'white' : 'black') +
+                    ' ' +
+                    (piece.type === 'P' ? 'pawn' : 'king')
+                  : ''
+              }`}
               onClick={() => handleSquareClick(sq)}
               onKeyDown={e => handleKeyDown(sq, e)}
               sx={{
-                backgroundColor: isDark ? '#769656' : '#eeeed2',
-                color: '#000',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                border: 'none',
-                padding: 0,
-                fontSize: 32,
-              }}
-            >
+                  backgroundColor: isLegal
+                    ? '#f6f669'
+                    : isDark
+                      ? '#769656'
+                      : '#eeeed2',
+                  color: '#000',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  border: 'none',
+                  padding: 0,
+                  fontSize: 32,
+                }}
+              >
               {piece && <span className="piece">{pieceSymbol(piece)}</span>}
             </Box>
           );
@@ -156,8 +211,9 @@ export default function App(): JSX.Element {
       >
         Flip Board
       </Button>
-
-      
+      <Typography data-testid="announcer" aria-live="polite">
+        {announcement}
+      </Typography>
     </Box>
   );
 }

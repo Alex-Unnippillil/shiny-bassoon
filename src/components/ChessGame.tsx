@@ -24,28 +24,29 @@ export default function ChessGame(): JSX.Element {
   const [selected, setSelected] = useState<string | null>(null);
   const workerRef = useRef<Worker | null>(null);
 
-  if (!workerRef.current) {
-    workerRef.current = new Worker(
-      new URL('../aiWorker.ts', import.meta.url),
-    );
-  }
+    if (!workerRef.current) {
+      workerRef.current = new Worker('');
+    }
 
-  useEffect(() => {
-    const worker = workerRef.current!;
-
-      }
-    };
-    return () => worker.terminate();
-  }, [aiMove]);
+    useEffect(() => {
+      const worker = workerRef.current!;
+      worker.onmessage = (
+        e: MessageEvent<{ move?: { from: string; to: string } }>,
+      ) => {
+        const move = e.data.move;
+        if (move) {
+          aiMove(move.from, move.to);
+        }
+      };
+      return () => worker.terminate();
+    }, [aiMove]);
 
   const handleSquareClick = (sq: string) => {
     if (selected) {
       playerMove(selected, sq);
-      workerRef.current?.postMessage({
-        type: 'PLAYER_MOVE',
-        from: selected,
-        to: sq,
-      });
+        workerRef.current?.postMessage({
+          move: { from: selected, to: sq },
+        });
       setSelected(null);
     } else if (board[sq]) {
       setSelected(sq);
