@@ -1,7 +1,7 @@
 export type Color = 'w' | 'b';
 
 export interface Piece {
-  type: 'P' | 'K';
+  type: 'P' | 'K' | 'Q' | 'R' | 'B' | 'N';
   color: Color;
 }
 

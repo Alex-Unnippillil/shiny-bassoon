@@ -90,6 +90,13 @@ test('allows capture', async () => {
   expect(res.type).toBe('AI_MOVE');
 });
 
+test('allows knight move', async () => {
+  const worker = createWorker();
+  worker.postMessage({ type: 'INIT', fen: INITIAL_FEN });
+  const res = await post(worker, { type: 'PLAYER_MOVE', from: 'g1', to: 'f3' });
+  expect(res.type).toBe('AI_MOVE');
+});
+
 test('reports checkmate', async () => {
   const worker = createWorker();
   worker.postMessage({ type: 'INIT', fen: '6k1/5Q2/7K/8/8/8/8/8 w - - 0 1' });

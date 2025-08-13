@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { useGameStore } from '../store';
+import type { WorkerResponse } from '../types';
 
 const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
 const ranks = [8, 7, 6, 5, 4, 3, 2, 1];
@@ -13,26 +14,21 @@ function pieceSymbol(piece: { type: 'P'; color: 'w' | 'b' } | undefined): string
   return symbols[piece.color + piece.type];
 }
 
-interface WorkerMoveMessage {
-  type: 'AI_MOVE';
-  from: string;
-  to: string;
-}
-
 export default function ChessGame(): JSX.Element {
   const { board, moves, playerMove, aiMove, undo, reset } = useGameStore();
   const [selected, setSelected] = useState<string | null>(null);
   const workerRef = useRef<Worker | null>(null);
 
   if (!workerRef.current) {
-    workerRef.current = new Worker(
-      new URL('../aiWorker.ts', import.meta.url),
-    );
+    workerRef.current = new Worker('./aiWorker.ts');
   }
 
   useEffect(() => {
     const worker = workerRef.current!;
-
+    worker.onmessage = (e: { data: WorkerResponse }) => {
+      const data = e.data;
+      if (data.type === 'AI_MOVE') {
+        aiMove(data.from, data.to);
       }
     };
     return () => worker.terminate();

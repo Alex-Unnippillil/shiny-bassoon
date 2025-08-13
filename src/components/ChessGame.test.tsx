@@ -40,7 +40,9 @@ describe('ChessGame', () => {
     fireEvent.click(to);
 
     expect(mockWorker.postMessage).toHaveBeenCalledWith({
-      move: { from: 'e2', to: 'e4' },
+      type: 'PLAYER_MOVE',
+      from: 'e2',
+      to: 'e4',
     });
     expect(getByTestId('move-list')).toHaveTextContent('e4');
     expect(
@@ -73,7 +75,7 @@ describe('ChessGame', () => {
 
     act(() => {
       mockWorker.onmessage?.({
-        data: { move: { from: 'e7', to: 'e5' } },
+        data: { type: 'AI_MOVE', from: 'e7', to: 'e5' },
       });
     });
 
