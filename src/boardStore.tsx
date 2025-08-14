@@ -9,25 +9,13 @@ import { Chess } from 'chess.js';
 import { INITIAL_FEN } from './constants';
 import type { Board, Piece } from './types';
 
-const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
-
-function initialBoard(): Board {
-  const game = new Chess(INITIAL_FEN);
-  const b: Board = {};
-  const board = game.board();
-  for (let r = 0; r < 8; r++) {
-    for (let f = 0; f < 8; f++) {
-      const piece = board[r][f];
-      if (piece) {
-        const square = files[f] + (8 - r);
-        b[square] = {
           type: piece.type.toUpperCase() as Piece['type'],
           color: piece.color as Piece['color'],
         };
       }
     }
   }
-  return b;
+
 }
 
 function movePiece(board: Board, from: string, to: string): Board {
