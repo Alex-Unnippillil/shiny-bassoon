@@ -9,25 +9,13 @@ import { Chess } from 'chess.js';
 import { INITIAL_FEN } from './constants';
 import type { Board, Piece } from './types';
 
-function initialBoard(): Board {
-  const game = new Chess(INITIAL_FEN);
-  const boardState = game.board();
-  const board: Board = {};
-  const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
-  for (let r = 0; r < 8; r++) {
-    for (let f = 0; f < 8; f++) {
-      const piece = boardState[r][f];
-      if (piece) {
-        const file = files[f];
-        const rank = 8 - r;
-        board[file + rank] = {
           type: piece.type.toUpperCase() as Piece['type'],
           color: piece.color as Piece['color'],
         };
       }
     }
   }
-  return board;
+
 }
 
 function movePiece(board: Board, from: string, to: string): Board {
