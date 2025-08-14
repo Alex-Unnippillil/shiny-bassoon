@@ -52,7 +52,7 @@ export default function App(): JSX.Element {
   const { playerMove, aiMove, flipOrientation, setBoard } = useBoardActions();
   const { fen, setFen, history, addMove, exportPGN, importFEN } = useGameStore();
   const [selected, setSelected] = useState<string | null>(null);
-  const selectedRef = useRef<string | null>(null);
+
   const [legalMoves, setLegalMoves] = useState<string[]>([]);
   const [announcement, setAnnouncement] = useState('');
   const [fenInput, setFenInput] = useState('');
@@ -61,13 +61,10 @@ export default function App(): JSX.Element {
   const gameRef = useRef(new Chess(fen || INITIAL_FEN));
 
   if (!workerRef.current) {
-    workerRef.current = new Worker(new URL('./aiWorker.ts', import.meta.url));
-    workerRef.current.postMessage({ type: 'INIT', fen: fen || INITIAL_FEN } as WorkerRequest);
-  }
-
-  useEffect(() => {
-    const worker = workerRef.current!;
-    worker.onmessage = (e: MessageEvent<WorkerResponse>) => {
+    workerRef.current = new Worker(new URL('./aiWorker.ts', import.meta.url), {
+      type: 'module',
+    });
+    workerRef.current.onmessage = (e: MessageEvent<WorkerResponse>) => {
       const data = e.data;
       switch (data.type) {
         case 'AI_MOVE':
@@ -83,20 +80,30 @@ export default function App(): JSX.Element {
         case 'STALEMATE':
           setAnnouncement('Stalemate');
           break;
-        case 'LEGAL_MOVES':
-          if (data.square === selectedRef.current) {
-            setLegalMoves(data.moves);
-          }
-          break;
+
         case 'ERROR':
           setAnnouncement(data.message);
+          if (data.legalMoves) {
+            const moves = data.legalMoves.map(m => {
+              const match = m.match(/[a-h][1-8]/g);
+              return match ? match[match.length - 1] : m;
+            });
+            setLegalMoves(moves);
+          }
           break;
         default:
           break;
       }
     };
-    return () => worker.terminate();
-  }, [aiMove, addMove, setFen]);
+    workerRef.current.postMessage({
+      type: 'INIT',
+      fen: fen || INITIAL_FEN,
+    } as WorkerRequest);
+  }
+
+  useEffect(() => {
+    return () => workerRef.current?.terminate();
+  }, []);
 
   const orderedSquares = useMemo(() => {
     const fileOrder = orientation === 'white' ? files : [...files].reverse();
@@ -126,29 +133,13 @@ export default function App(): JSX.Element {
     if (selected) {
       if (square === selected) {
         setSelected(null);
-        selectedRef.current = null;
-        setLegalMoves([]);
-      } else if (legalMoves.includes(square)) {
-        handleMove(selected, square);
-        setSelected(null);
-        selectedRef.current = null;
-      } else if (board[square]) {
-        setSelected(square);
-        selectedRef.current = square;
-        setLegalMoves([]);
+
         workerRef.current?.postMessage({
           type: 'GET_LEGAL_MOVES',
           square,
         } as WorkerRequest);
       } else {
-        setSelected(null);
-        selectedRef.current = null;
-        setLegalMoves([]);
-      }
-    } else if (board[square]) {
-      setSelected(square);
-      selectedRef.current = square;
-      setLegalMoves([]);
+
       workerRef.current?.postMessage({
         type: 'GET_LEGAL_MOVES',
         square,
@@ -288,10 +279,24 @@ export default function App(): JSX.Element {
                 border: 'none',
                 padding: 0,
                 fontSize: 32,
-                outline: isLegal ? '3px solid #ff0' : 'none',
+
               }}
             >
               {piece && <span className="piece">{pieceSymbol(piece)}</span>}
+              {legalMoves.includes(sq) && (
+                <Box
+                  data-legal-marker="true"
+                  component="span"
+                  sx={{
+                    position: 'absolute',
+                    display: 'block',
+                    width: '60%',
+                    height: '60%',
+                    borderRadius: '50%',
+                    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+                  }}
+                />
+              )}
             </Box>
           );
         })}
