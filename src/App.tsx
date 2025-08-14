@@ -16,6 +16,14 @@ function pieceSymbol(piece: Piece | undefined): string | null {
     bP: '♟︎',
     wK: '♔',
     bK: '♚',
+    wQ: '♕',
+    bQ: '♛',
+    wR: '♖',
+    bR: '♜',
+    wB: '♗',
+    bB: '♝',
+    wN: '♘',
+    bN: '♞',
   };
   return symbols[piece.color + piece.type];
 }
@@ -44,6 +52,7 @@ export default function App(): JSX.Element {
   const { playerMove, aiMove, flipOrientation, setBoard } = useBoardActions();
   const { fen, setFen, history, addMove, exportPGN, importFEN } = useGameStore();
   const [selected, setSelected] = useState<string | null>(null);
+
   const [legalMoves, setLegalMoves] = useState<string[]>([]);
   const [announcement, setAnnouncement] = useState('');
   const [fenInput, setFenInput] = useState('');
@@ -71,14 +80,7 @@ export default function App(): JSX.Element {
         case 'STALEMATE':
           setAnnouncement('Stalemate');
           break;
-        case 'LEGAL_MOVES': {
-          const moves = data.moves.map(m => {
-            const match = m.match(/[a-h][1-8]/g);
-            return match ? match[match.length - 1] : m;
-          });
-          setLegalMoves(moves);
-          break;
-        }
+
         case 'ERROR':
           setAnnouncement(data.message);
           if (data.legalMoves) {
@@ -116,6 +118,7 @@ export default function App(): JSX.Element {
   }, [orientation]);
 
   const handleMove = (from: string, to: string) => {
+    if (!legalMoves.includes(to)) return;
     const move = gameRef.current.move({ from, to, promotion: 'q' });
     if (!move) return;
     playerMove(from, to);
@@ -123,38 +126,20 @@ export default function App(): JSX.Element {
     addMove(to);
     setFen(gameRef.current.fen());
     setAnnouncement(`Player moved ${from} to ${to}`);
+    setLegalMoves([]);
   };
 
   const handleSquareClick = (square: string) => {
     if (selected) {
       if (square === selected) {
         setSelected(null);
-        setLegalMoves([]);
-        return;
-      }
-      if (legalMoves.includes(square)) {
-        handleMove(selected, square);
-        setSelected(null);
-        setLegalMoves([]);
-      } else if (board[square]) {
-        setSelected(square);
-        const moves = gameRef.current
-          .moves({ square, verbose: true })
-          .map((m) => (m as { to: string }).to);
-        setLegalMoves(moves);
+
         workerRef.current?.postMessage({
           type: 'GET_LEGAL_MOVES',
           square,
         } as WorkerRequest);
       } else {
-        setAnnouncement('Illegal move');
-      }
-    } else if (board[square]) {
-      setSelected(square);
-      const moves = gameRef.current
-        .moves({ square, verbose: true })
-        .map((m) => (m as { to: string }).to);
-      setLegalMoves(moves);
+
       workerRef.current?.postMessage({
         type: 'GET_LEGAL_MOVES',
         square,
@@ -263,11 +248,13 @@ export default function App(): JSX.Element {
         {orderedSquares.map((sq, idx) => {
           const piece = board[sq];
           const isDark = Math.floor(idx / 8) % 2 === idx % 2;
+          const isLegal = legalMoves.includes(sq);
           return (
             <Box
               key={sq}
               component="button"
               data-square={sq}
+              data-legal={isLegal ? 'true' : undefined}
               role="gridcell"
               ref={(el) => {
                 squareRefs.current[sq] = el as HTMLButtonElement | null;
@@ -292,7 +279,7 @@ export default function App(): JSX.Element {
                 border: 'none',
                 padding: 0,
                 fontSize: 32,
-                position: 'relative',
+
               }}
             >
               {piece && <span className="piece">{pieceSymbol(piece)}</span>}
