@@ -58,3 +58,4 @@ jobs:
         with:
           name: playwright-traces
           path: test-results
+          if-no-files-found: ignore
