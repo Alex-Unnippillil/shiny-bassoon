@@ -9,6 +9,15 @@ import { INITIAL_FEN } from './constants';
 const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
 const ranks = [1, 2, 3, 4, 5, 6, 7, 8];
 
+const pieceNames: Record<Piece['type'], string> = {
+  P: 'pawn',
+  K: 'king',
+  Q: 'queen',
+  R: 'rook',
+  B: 'bishop',
+  N: 'knight',
+};
+
 function pieceSymbol(piece: Piece | undefined): string | null {
   if (!piece) return null;
   const symbols: Record<string, string> = {
@@ -16,6 +25,14 @@ function pieceSymbol(piece: Piece | undefined): string | null {
     bP: '♟︎',
     wK: '♔',
     bK: '♚',
+    wQ: '♕',
+    bQ: '♛',
+    wR: '♖',
+    bR: '♜',
+    wB: '♗',
+    bB: '♝',
+    wN: '♘',
+    bN: '♞',
   };
   return symbols[piece.color + piece.type];
 }
@@ -227,10 +244,11 @@ export default function App(): JSX.Element {
               tabIndex={0}
               aria-label={`square ${sq}${
                 piece
-                  ? ' with ' +
-                    (piece.color === 'w' ? 'white' : 'black') +
-                    ' ' +
-                    (piece.type === 'P' ? 'pawn' : 'king')
+                  ?
+                      ' with ' +
+                      (piece.color === 'w' ? 'white' : 'black') +
+                      ' ' +
+                      pieceNames[piece.type]
                   : ''
               }`}
               onClick={() => handleSquareClick(sq)}
