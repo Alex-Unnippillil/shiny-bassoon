@@ -51,12 +51,12 @@ function reducer(state: State, action: Action): State {
     }
     case 'UNDO': {
       if (state.history.length > 1) {
-        const newHistory = state.history.slice(0, -2);
+        const newHistory = state.history.slice(0, -1);
         const board = newHistory[newHistory.length - 1] || initialBoard();
         return {
           board,
           history: newHistory.length ? newHistory : [initialBoard()],
-          moves: state.moves.slice(0, -2),
+          moves: state.moves.slice(0, -1),
         };
       }
       return state;
