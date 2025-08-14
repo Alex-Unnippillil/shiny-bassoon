@@ -44,6 +44,8 @@ export default function App(): JSX.Element {
   const { playerMove, aiMove, flipOrientation, setBoard } = useBoardActions();
   const { fen, setFen, history, addMove, exportPGN, importFEN } = useGameStore();
   const [selected, setSelected] = useState<string | null>(null);
+  const selectedRef = useRef<string | null>(null);
+  const [legalMoves, setLegalMoves] = useState<string[]>([]);
   const [announcement, setAnnouncement] = useState('');
   const [fenInput, setFenInput] = useState('');
   const squareRefs = useRef<Record<string, HTMLButtonElement | null>>({});
@@ -73,6 +75,11 @@ export default function App(): JSX.Element {
         case 'STALEMATE':
           setAnnouncement('Stalemate');
           break;
+        case 'LEGAL_MOVES':
+          if (data.square === selectedRef.current) {
+            setLegalMoves(data.moves);
+          }
+          break;
         case 'ERROR':
           setAnnouncement(data.message);
           break;
@@ -96,6 +103,7 @@ export default function App(): JSX.Element {
   }, [orientation]);
 
   const handleMove = (from: string, to: string) => {
+    if (!legalMoves.includes(to)) return;
     const move = gameRef.current.move({ from, to, promotion: 'q' });
     if (!move) return;
     playerMove(from, to);
@@ -103,14 +111,40 @@ export default function App(): JSX.Element {
     addMove(to);
     setFen(gameRef.current.fen());
     setAnnouncement(`Player moved ${from} to ${to}`);
+    setLegalMoves([]);
   };
 
   const handleSquareClick = (square: string) => {
     if (selected) {
-      handleMove(selected, square);
-      setSelected(null);
+      if (square === selected) {
+        setSelected(null);
+        selectedRef.current = null;
+        setLegalMoves([]);
+      } else if (legalMoves.includes(square)) {
+        handleMove(selected, square);
+        setSelected(null);
+        selectedRef.current = null;
+      } else if (board[square]) {
+        setSelected(square);
+        selectedRef.current = square;
+        setLegalMoves([]);
+        workerRef.current?.postMessage({
+          type: 'GET_LEGAL_MOVES',
+          square,
+        } as WorkerRequest);
+      } else {
+        setSelected(null);
+        selectedRef.current = null;
+        setLegalMoves([]);
+      }
     } else if (board[square]) {
       setSelected(square);
+      selectedRef.current = square;
+      setLegalMoves([]);
+      workerRef.current?.postMessage({
+        type: 'GET_LEGAL_MOVES',
+        square,
+      } as WorkerRequest);
     }
   };
 
@@ -215,11 +249,13 @@ export default function App(): JSX.Element {
         {orderedSquares.map((sq, idx) => {
           const piece = board[sq];
           const isDark = Math.floor(idx / 8) % 2 === idx % 2;
+          const isLegal = legalMoves.includes(sq);
           return (
             <Box
               key={sq}
               component="button"
               data-square={sq}
+              data-legal={isLegal ? 'true' : undefined}
               role="gridcell"
               ref={(el) => {
                 squareRefs.current[sq] = el as HTMLButtonElement | null;
@@ -244,6 +280,7 @@ export default function App(): JSX.Element {
                 border: 'none',
                 padding: 0,
                 fontSize: 32,
+                outline: isLegal ? '3px solid #ff0' : 'none',
               }}
             >
               {piece && <span className="piece">{pieceSymbol(piece)}</span>}
