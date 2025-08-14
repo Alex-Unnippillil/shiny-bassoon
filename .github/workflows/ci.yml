@@ -6,16 +6,21 @@ on:
   pull_request:
     branches: ["main"]
 
+permissions:
+  contents: read
+
 jobs:
   build:
+    permissions:
+      actions: write
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v4.3.0
+      - uses: actions/setup-node@v4.4.0
         with:
           node-version: 18
       - name: Cache node_modules
-        uses: actions/cache@v3
+        uses: actions/cache@v3.4.3
         with:
           path: node_modules
           key: ${{ runner.os }}-node-${{ hashFiles('package-lock.json') }}
@@ -24,14 +29,16 @@ jobs:
       - name: Build
         run: npm run build
   test:
+    permissions:
+      actions: write
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v4.3.0
+      - uses: actions/setup-node@v4.4.0
         with:
           node-version: 18
       - name: Cache node_modules
-        uses: actions/cache@v3
+        uses: actions/cache@v3.4.3
         with:
           path: node_modules
           key: ${{ runner.os }}-node-${{ hashFiles('package-lock.json') }}
@@ -45,7 +52,7 @@ jobs:
         run: npm run e2e
       - name: Upload Playwright traces
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v4.6.2
         with:
           name: playwright-traces
           path: test-results
