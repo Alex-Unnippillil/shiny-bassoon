@@ -16,6 +16,14 @@ function pieceSymbol(piece: Piece | undefined): string | null {
     bP: '♟︎',
     wK: '♔',
     bK: '♚',
+    wQ: '♕',
+    bQ: '♛',
+    wR: '♖',
+    bR: '♜',
+    wB: '♗',
+    bB: '♝',
+    wN: '♘',
+    bN: '♞',
   };
   return symbols[piece.color + piece.type];
 }
@@ -44,6 +52,8 @@ export default function App(): JSX.Element {
   const { playerMove, aiMove, flipOrientation, setBoard } = useBoardActions();
   const { fen, setFen, history, addMove, exportPGN, importFEN } = useGameStore();
   const [selected, setSelected] = useState<string | null>(null);
+
+  const [legalMoves, setLegalMoves] = useState<string[]>([]);
   const [announcement, setAnnouncement] = useState('');
   const [fenInput, setFenInput] = useState('');
   const squareRefs = useRef<Record<string, HTMLButtonElement | null>>({});
@@ -51,13 +61,10 @@ export default function App(): JSX.Element {
   const gameRef = useRef(new Chess(fen || INITIAL_FEN));
 
   if (!workerRef.current) {
-    workerRef.current = new Worker(new URL('./aiWorker.ts', import.meta.url));
-    workerRef.current.postMessage({ type: 'INIT', fen: fen || INITIAL_FEN } as WorkerRequest);
-  }
-
-  useEffect(() => {
-    const worker = workerRef.current!;
-    worker.onmessage = (e: MessageEvent<WorkerResponse>) => {
+    workerRef.current = new Worker(new URL('./aiWorker.ts', import.meta.url), {
+      type: 'module',
+    });
+    workerRef.current.onmessage = (e: MessageEvent<WorkerResponse>) => {
       const data = e.data;
       switch (data.type) {
         case 'AI_MOVE':
@@ -73,15 +80,30 @@ export default function App(): JSX.Element {
         case 'STALEMATE':
           setAnnouncement('Stalemate');
           break;
+
         case 'ERROR':
           setAnnouncement(data.message);
+          if (data.legalMoves) {
+            const moves = data.legalMoves.map(m => {
+              const match = m.match(/[a-h][1-8]/g);
+              return match ? match[match.length - 1] : m;
+            });
+            setLegalMoves(moves);
+          }
           break;
         default:
           break;
       }
     };
-    return () => worker.terminate();
-  }, [aiMove, addMove, setFen]);
+    workerRef.current.postMessage({
+      type: 'INIT',
+      fen: fen || INITIAL_FEN,
+    } as WorkerRequest);
+  }
+
+  useEffect(() => {
+    return () => workerRef.current?.terminate();
+  }, []);
 
   const orderedSquares = useMemo(() => {
     const fileOrder = orientation === 'white' ? files : [...files].reverse();
@@ -96,6 +118,7 @@ export default function App(): JSX.Element {
   }, [orientation]);
 
   const handleMove = (from: string, to: string) => {
+    if (!legalMoves.includes(to)) return;
     const move = gameRef.current.move({ from, to, promotion: 'q' });
     if (!move) return;
     playerMove(from, to);
@@ -103,14 +126,24 @@ export default function App(): JSX.Element {
     addMove(to);
     setFen(gameRef.current.fen());
     setAnnouncement(`Player moved ${from} to ${to}`);
+    setLegalMoves([]);
   };
 
   const handleSquareClick = (square: string) => {
     if (selected) {
-      handleMove(selected, square);
-      setSelected(null);
-    } else if (board[square]) {
-      setSelected(square);
+      if (square === selected) {
+        setSelected(null);
+
+        workerRef.current?.postMessage({
+          type: 'GET_LEGAL_MOVES',
+          square,
+        } as WorkerRequest);
+      } else {
+
+      workerRef.current?.postMessage({
+        type: 'GET_LEGAL_MOVES',
+        square,
+      } as WorkerRequest);
     }
   };
 
@@ -215,11 +248,13 @@ export default function App(): JSX.Element {
         {orderedSquares.map((sq, idx) => {
           const piece = board[sq];
           const isDark = Math.floor(idx / 8) % 2 === idx % 2;
+          const isLegal = legalMoves.includes(sq);
           return (
             <Box
               key={sq}
               component="button"
               data-square={sq}
+              data-legal={isLegal ? 'true' : undefined}
               role="gridcell"
               ref={(el) => {
                 squareRefs.current[sq] = el as HTMLButtonElement | null;
@@ -244,9 +279,24 @@ export default function App(): JSX.Element {
                 border: 'none',
                 padding: 0,
                 fontSize: 32,
+
               }}
             >
               {piece && <span className="piece">{pieceSymbol(piece)}</span>}
+              {legalMoves.includes(sq) && (
+                <Box
+                  data-legal-marker="true"
+                  component="span"
+                  sx={{
+                    position: 'absolute',
+                    display: 'block',
+                    width: '60%',
+                    height: '60%',
+                    borderRadius: '50%',
+                    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+                  }}
+                />
+              )}
             </Box>
           );
         })}
