@@ -3,6 +3,8 @@ import { render, fireEvent, waitFor } from '@testing-library/react';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import App from './App';
 import { BoardProvider } from './boardStore';
+import { DndProvider } from 'react-dnd';
+import { TestBackend } from 'react-dnd-test-backend';
 
 type WorkerRequest = import('./types').WorkerRequest;
 
@@ -36,7 +38,9 @@ test('requests and highlights legal moves', async () => {
   const { container } = render(
     <ThemeProvider theme={theme}>
       <BoardProvider>
-        <App />
+        <DndProvider backend={TestBackend}>
+          <App />
+        </DndProvider>
       </BoardProvider>
     </ThemeProvider>,
   );
@@ -47,13 +51,17 @@ test('requests and highlights legal moves', async () => {
   fireEvent.click(e2);
   expect(worker.lastMessage).toEqual({ type: 'GET_LEGAL_MOVES', square: 'e2' });
 
-  const e3 = container.querySelector('[data-square="e3"]') as HTMLElement;
-  await waitFor(() => expect(e3.getAttribute('data-legal')).toBe('true'));
+  const e3Selector = '[data-square="e3"]';
+  await waitFor(() =>
+    expect(container.querySelector(e3Selector)?.getAttribute('data-legal')).toBe('true'),
+  );
 
   const e5 = container.querySelector('[data-square="e5"]') as HTMLElement;
   fireEvent.click(e5);
   expect(e2.textContent).toBe('♙');
-  await waitFor(() => expect(e3.getAttribute('data-legal')).toBeNull());
+  await waitFor(() =>
+    expect(container.querySelector(e3Selector)?.getAttribute('data-legal')).toBeNull(),
+  );
 
   globalObj.Worker = OriginalWorker;
 });

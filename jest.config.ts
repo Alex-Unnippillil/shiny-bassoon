@@ -6,6 +6,9 @@ const config: Config = {
   transform: {
     '^.+\\.[tj]sx?$': 'babel-jest',
   },
+  transformIgnorePatterns: [
+    '/node_modules/(?!(@react-dnd|react-dnd|dnd-core|react-dnd-html5-backend|react-dnd-test-backend)/)',
+  ],
 };
 
 export default config;
