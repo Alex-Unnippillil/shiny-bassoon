@@ -9,13 +9,23 @@ import { Chess } from 'chess.js';
 import { INITIAL_FEN } from './constants';
 import type { Board, Piece } from './types';
 
+function initialBoard(): Board {
+  const chess = new Chess(INITIAL_FEN);
+  const board: Board = {};
+  const positions = chess.board();
+  for (let rank = 0; rank < positions.length; rank++) {
+    for (let file = 0; file < positions[rank].length; file++) {
+      const piece = positions[rank][file];
+      if (piece) {
+        const square = `${String.fromCharCode(97 + file)}${8 - rank}`;
+        board[square] = {
           type: piece.type.toUpperCase() as Piece['type'],
           color: piece.color as Piece['color'],
         };
       }
     }
   }
-
+  return board;
 }
 
 function movePiece(board: Board, from: string, to: string): Board {
