@@ -30,7 +30,10 @@ function initialBoard(): Board {
 
 function movePiece(board: Board, from: string, to: string): Board {
   const moving = board[from];
-  const newBoard = { ...board };
+  if (!moving) {
+    return board;
+  }
+  const newBoard: Board = { ...board };
   newBoard[to] = moving;
   delete newBoard[from];
   return newBoard;
