@@ -139,21 +139,24 @@ export default function App(): JSX.Element {
   };
 
   const handleSquareClick = (square: string) => {
-    if (selected) {
-      if (square === selected) {
-        setSelected(null);
-
-        workerRef.current?.postMessage({
-          type: 'GET_LEGAL_MOVES',
-          square,
-        } as WorkerRequest);
-      } else {
-
+    if (!selected) {
+      setSelected(square);
       workerRef.current?.postMessage({
         type: 'GET_LEGAL_MOVES',
         square,
       } as WorkerRequest);
+      return;
     }
+
+    if (square === selected) {
+      setSelected(null);
+      setLegalMoves([]);
+      return;
+    }
+
+    handleMove(selected, square);
+    setSelected(null);
+    setLegalMoves([]);
   };
 
   const handleKeyDown = (
