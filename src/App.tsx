@@ -3,6 +3,7 @@ import { Box, Button, TextField, List, ListItem, ListItemText } from '@mui/mater
 import { Chess } from 'chess.js';
 import { useBoardState, useBoardActions } from './boardStore';
 import useGameStore from './useGameStore';
+import useClock from './useClock';
 import type { Piece, WorkerRequest, WorkerResponse, Board } from './types';
 import { INITIAL_FEN } from './constants';
 
@@ -56,45 +57,7 @@ function boardFromGame(game: Chess): Board {
   return newBoard;
 }
 
-interface MoveHistoryProps {
-  history: string[];
-}
 
-export function MoveHistory({ history }: MoveHistoryProps): JSX.Element {
-  const listRef = useRef<HTMLUListElement>(null);
-
-  const pairs = useMemo(() => {
-    const out: { num: number; white: string; black?: string }[] = [];
-    for (let i = 0; i < history.length; i += 2) {
-      out.push({ num: i / 2 + 1, white: history[i], black: history[i + 1] });
-    }
-    return out;
-  }, [history]);
-
-  useEffect(() => {
-    const list = listRef.current;
-    if (list) {
-      list.scrollTop = list.scrollHeight;
-    }
-  }, [history]);
-
-  return (
-    <Box
-      sx={{
-        width: { xs: '100%', sm: 200 },
-        maxHeight: 200,
-        overflowY: 'auto',
-      }}
-    >
-      <List ref={listRef} dense>
-        {pairs.map((p) => (
-          <ListItem key={p.num} disablePadding>
-            <ListItemText primary={`${p.num}. ${p.white} ${p.black ?? ''}`} />
-          </ListItem>
-        ))}
-      </List>
-    </Box>
-  );
 }
 
 export default function App(): JSX.Element {
@@ -109,6 +72,24 @@ export default function App(): JSX.Element {
   const squareRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const workerRef = useRef<Worker | null>(null);
   const gameRef = useRef(new Chess(fen || INITIAL_FEN));
+  const { white, black, start, pause, reset } = useClock(300);
+  const [gameOver, setGameOver] = useState(false);
+
+  useEffect(() => {
+    start('white');
+  }, [start]);
+
+  useEffect(() => {
+    if (white === 0) {
+      setAnnouncement('White ran out of time. Black wins.');
+      setGameOver(true);
+      pause();
+    } else if (black === 0) {
+      setAnnouncement('Black ran out of time. White wins.');
+      setGameOver(true);
+      pause();
+    }
+  }, [white, black, pause]);
 
   if (!workerRef.current) {
     workerRef.current = new Worker(new URL('./aiWorker.ts', import.meta.url), {
@@ -123,6 +104,7 @@ export default function App(): JSX.Element {
           addMove(data.to);
           setFen(gameRef.current.fen());
           setAnnouncement(`AI moved ${data.from} to ${data.to}`);
+          start('white');
           break;
         case 'CHECKMATE':
           setAnnouncement(`Checkmate: ${data.winner === 'w' ? 'White' : 'Black'} wins`);
@@ -177,24 +159,28 @@ export default function App(): JSX.Element {
     setFen(gameRef.current.fen());
     setAnnouncement(`Player moved ${from} to ${to}`);
     setLegalMoves([]);
+    start('black');
   };
 
   const handleSquareClick = (square: string) => {
-    if (selected) {
-      if (square === selected) {
-        setSelected(null);
-        setLegalMoves([]);
-      } else {
-        handleMove(selected, square);
-        setSelected(null);
-      }
-    } else {
+
       setSelected(square);
       workerRef.current?.postMessage({
         type: 'GET_LEGAL_MOVES',
         square,
       } as WorkerRequest);
+      return;
     }
+
+    if (square === selected) {
+      setSelected(null);
+      setLegalMoves([]);
+      return;
+    }
+
+    handleMove(selected, square);
+    setSelected(null);
+    setLegalMoves([]);
   };
 
   const handleKeyDown = (
@@ -238,8 +224,9 @@ export default function App(): JSX.Element {
 
   const handleUndo = () => {
     const g = gameRef.current;
-    if (!g.undo()) return;
-    g.undo();
+    if (g.history().length < 2) return; // ensure both player & AI moves exist
+    g.undo(); // undo AI move
+    g.undo(); // undo player move
     const newBoard = boardFromGame(g);
     setBoard(newBoard);
     const newHistory = history.slice(0, -2);
@@ -256,6 +243,9 @@ export default function App(): JSX.Element {
     importFEN(INITIAL_FEN);
     workerRef.current?.postMessage({ type: 'INIT', fen: INITIAL_FEN } as WorkerRequest);
     setAnnouncement('Game reset');
+    reset();
+    setGameOver(false);
+    start('white');
   };
 
   const handleExport = () => {
@@ -284,6 +274,7 @@ export default function App(): JSX.Element {
 
   return (
     <Box display="flex" flexDirection="column" alignItems="center" gap={2}>
+      <Box data-testid="black-timer">{formatTime(black)}</Box>
       <Box
         display="flex"
         gap={2}
@@ -363,6 +354,7 @@ export default function App(): JSX.Element {
         </Box>
         <MoveHistory history={history} />
       </Box>
+      <Box data-testid="white-timer">{formatTime(white)}</Box>
       <Button
         variant="contained"
         onClick={handleFlip}
