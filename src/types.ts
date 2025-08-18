@@ -5,7 +5,7 @@ export interface Piece {
   color: Color;
 }
 
-export type Board = Record<string, Piece>;
+export type Board = Partial<Record<string, Piece>>;
 
 export interface Move {
   from: string;
