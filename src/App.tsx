@@ -168,31 +168,24 @@ export default function App(): JSX.Element {
   };
 
   const handleSquareClick = (square: string) => {
-    if (gameOver) return;
-    if (selected) {
-      if (square === selected) {
-        setSelected(null);
-        workerRef.current?.postMessage({
-          type: 'GET_LEGAL_MOVES',
-          square,
-        } as WorkerRequest);
-      } else if (legalMoves.includes(square)) {
-        handleMove(selected, square);
-        setSelected(null);
-      } else {
-        setSelected(square);
-        workerRef.current?.postMessage({
-          type: 'GET_LEGAL_MOVES',
-          square,
-        } as WorkerRequest);
-      }
-    } else {
+
       setSelected(square);
       workerRef.current?.postMessage({
         type: 'GET_LEGAL_MOVES',
         square,
       } as WorkerRequest);
+      return;
     }
+
+    if (square === selected) {
+      setSelected(null);
+      setLegalMoves([]);
+      return;
+    }
+
+    handleMove(selected, square);
+    setSelected(null);
+    setLegalMoves([]);
   };
 
   const handleKeyDown = (
@@ -236,8 +229,9 @@ export default function App(): JSX.Element {
 
   const handleUndo = () => {
     const g = gameRef.current;
-    if (!g.undo()) return;
-    g.undo();
+    if (g.history().length < 2) return; // ensure both player & AI moves exist
+    g.undo(); // undo AI move
+    g.undo(); // undo player move
     const newBoard = boardFromGame(g);
     setBoard(newBoard);
     const newHistory = history.slice(0, -2);
