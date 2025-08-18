@@ -78,7 +78,6 @@ export default function App(): JSX.Element {
   const workerRef = useRef<Worker | null>(null);
   const gameRef = useRef(new Chess(fen || INITIAL_FEN));
   const { white, black, start, pause, reset } = useClock(300);
-  const [gameOver, setGameOver] = useState(false);
 
   useEffect(() => {
     start('white');
@@ -87,11 +86,9 @@ export default function App(): JSX.Element {
   useEffect(() => {
     if (white === 0) {
       setAnnouncement('White ran out of time. Black wins.');
-      setGameOver(true);
       pause();
     } else if (black === 0) {
       setAnnouncement('Black ran out of time. White wins.');
-      setGameOver(true);
       pause();
     }
   }, [white, black, pause]);
@@ -168,12 +165,9 @@ export default function App(): JSX.Element {
   };
 
   const handleSquareClick = (square: string) => {
-
+    if (!selected) {
       setSelected(square);
-      workerRef.current?.postMessage({
-        type: 'GET_LEGAL_MOVES',
-        square,
-      } as WorkerRequest);
+      workerRef.current?.postMessage({ type: 'GET_LEGAL_MOVES', square } as WorkerRequest);
       return;
     }
 
@@ -249,7 +243,6 @@ export default function App(): JSX.Element {
     workerRef.current?.postMessage({ type: 'INIT', fen: INITIAL_FEN } as WorkerRequest);
     setAnnouncement('Game reset');
     reset();
-    setGameOver(false);
     start('white');
   };
 
