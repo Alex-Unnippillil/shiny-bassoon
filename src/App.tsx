@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { Box, Button, TextField } from '@mui/material';
+import { Box, Button, TextField, List, ListItem, ListItemText } from '@mui/material';
 import { Chess } from 'chess.js';
 import { useBoardState, useBoardActions } from './boardStore';
 import useGameStore from './useGameStore';
@@ -54,6 +54,47 @@ function boardFromGame(game: Chess): Board {
     }
   }
   return newBoard;
+}
+
+interface MoveHistoryProps {
+  history: string[];
+}
+
+export function MoveHistory({ history }: MoveHistoryProps): JSX.Element {
+  const listRef = useRef<HTMLUListElement>(null);
+
+  const pairs = useMemo(() => {
+    const out: { num: number; white: string; black?: string }[] = [];
+    for (let i = 0; i < history.length; i += 2) {
+      out.push({ num: i / 2 + 1, white: history[i], black: history[i + 1] });
+    }
+    return out;
+  }, [history]);
+
+  useEffect(() => {
+    const list = listRef.current;
+    if (list) {
+      list.scrollTop = list.scrollHeight;
+    }
+  }, [history]);
+
+  return (
+    <Box
+      sx={{
+        width: { xs: '100%', sm: 200 },
+        maxHeight: 200,
+        overflowY: 'auto',
+      }}
+    >
+      <List ref={listRef} dense>
+        {pairs.map((p) => (
+          <ListItem key={p.num} disablePadding>
+            <ListItemText primary={`${p.num}. ${p.white} ${p.black ?? ''}`} />
+          </ListItem>
+        ))}
+      </List>
+    </Box>
+  );
 }
 
 export default function App(): JSX.Element {
@@ -142,13 +183,13 @@ export default function App(): JSX.Element {
     if (selected) {
       if (square === selected) {
         setSelected(null);
-
-        workerRef.current?.postMessage({
-          type: 'GET_LEGAL_MOVES',
-          square,
-        } as WorkerRequest);
+        setLegalMoves([]);
       } else {
-
+        handleMove(selected, square);
+        setSelected(null);
+      }
+    } else {
+      setSelected(square);
       workerRef.current?.postMessage({
         type: 'GET_LEGAL_MOVES',
         square,
@@ -244,72 +285,83 @@ export default function App(): JSX.Element {
   return (
     <Box display="flex" flexDirection="column" alignItems="center" gap={2}>
       <Box
-        display="grid"
-        gridTemplateColumns="repeat(8, 1fr)"
-        role="grid"
-        sx={{
-          width: '100%',
-          maxWidth: 400,
-          aspectRatio: '1 / 1',
-          border: '1px solid #333',
-        }}
+        display="flex"
+        gap={2}
+        width="100%"
+        maxWidth={600}
+        flexDirection={{ xs: 'column', sm: 'row' }}
+        alignItems={{ xs: 'center', sm: 'flex-start' }}
+        justifyContent="center"
       >
-        {orderedSquares.map((sq, idx) => {
-          const piece = board[sq];
-          const isDark = Math.floor(idx / 8) % 2 === idx % 2;
-          const isLegal = legalMoves.includes(sq);
-          return (
-            <Box
-              key={sq}
-              component="button"
-              data-square={sq}
-              data-legal={isLegal ? 'true' : undefined}
-              role="gridcell"
-              ref={(el) => {
-                squareRefs.current[sq] = el as HTMLButtonElement | null;
-              }}
-              tabIndex={0}
-              aria-label={`square ${sq}${
-                piece
-                  ?
-                      ' with ' +
-                      (piece.color === 'w' ? 'white' : 'black') +
-                      ' ' +
-                      pieceNames[piece.type]
-                  : ''
-              }`}
-              onClick={() => handleSquareClick(sq)}
-              onKeyDown={(e) => handleKeyDown(sq, e)}
-              sx={{
-                backgroundColor: isDark ? '#769656' : '#eeeed2',
-                color: '#000',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                border: 'none',
-                padding: 0,
-                fontSize: 32,
+        <Box
+          display="grid"
+          gridTemplateColumns="repeat(8, 1fr)"
+          role="grid"
+          sx={{
+            width: '100%',
+            maxWidth: 400,
+            aspectRatio: '1 / 1',
+            border: '1px solid #333',
+          }}
+        >
+          {orderedSquares.map((sq, idx) => {
+            const piece = board[sq];
+            const isDark = Math.floor(idx / 8) % 2 === idx % 2;
+            const isLegal = legalMoves.includes(sq);
+            return (
+              <Box
+                key={sq}
+                component="button"
+                data-square={sq}
+                data-legal={isLegal ? 'true' : undefined}
+                role="gridcell"
+                ref={(el) => {
+                  squareRefs.current[sq] = el as HTMLButtonElement | null;
+                }}
+                tabIndex={0}
+                aria-label={`square ${sq}${
+                  piece
+                    ?
+                        ' with ' +
+                        (piece.color === 'w' ? 'white' : 'black') +
+                        ' ' +
+                        pieceNames[piece.type]
+                    : ''
+                }`}
+                onClick={() => handleSquareClick(sq)}
+                onKeyDown={(e) => handleKeyDown(sq, e)}
+                sx={{
+                  backgroundColor: isDark ? '#769656' : '#eeeed2',
+                  color: '#000',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  border: 'none',
+                  padding: 0,
+                  fontSize: 32,
 
-              }}
-            >
-              {piece && <span className="piece">{pieceSymbol(piece)}</span>}
-              {legalMoves.includes(sq) && (
-                <Box
-                  data-legal-marker="true"
-                  component="span"
-                  sx={{
-                    position: 'absolute',
-                    display: 'block',
-                    width: '60%',
-                    height: '60%',
-                    borderRadius: '50%',
-                    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-                  }}
-                />
-              )}
-            </Box>
-          );
-        })}
+                }}
+              >
+                {piece && <span className="piece">{pieceSymbol(piece)}</span>}
+                {legalMoves.includes(sq) && (
+                  <Box
+                    data-legal-marker="true"
+                    component="span"
+                    sx={{
+                      position: 'absolute',
+                      display: 'block',
+                      width: '60%',
+                      height: '60%',
+                      borderRadius: '50%',
+                      backgroundColor: 'rgba(0, 0, 0, 0.3)',
+                    }}
+                  />
+                )}
+              </Box>
+            );
+          })}
+        </Box>
+        <MoveHistory history={history} />
       </Box>
       <Button
         variant="contained"
