@@ -8,14 +8,24 @@ import React, {
 import { Chess } from 'chess.js';
 import { INITIAL_FEN } from './constants';
 import type { Board, Piece } from './types';
-
+function initialBoard(): Board {
+  const chess = new Chess(INITIAL_FEN);
+  const boardState = chess.board();
+  const board: Board = {};
+  for (let r = 0; r < 8; r++) {
+    for (let f = 0; f < 8; f++) {
+      const piece = boardState[r][f];
+      if (piece) {
+        const file = 'abcdefgh'[f];
+        const rank = 8 - r;
+        board[`${file}${rank}`] = {
           type: piece.type.toUpperCase() as Piece['type'],
           color: piece.color as Piece['color'],
         };
       }
     }
   }
-
+  return board;
 }
 
 function movePiece(board: Board, from: string, to: string): Board {
@@ -37,6 +47,7 @@ type Action =
 interface BoardState {
   board: Board;
   orientation: Orientation;
+  lastMove: { from: string; to: string } | null;
 }
 
 interface BoardActions {
@@ -50,9 +61,13 @@ function reducer(state: BoardState, action: Action): BoardState {
   switch (action.type) {
     case 'PLAYER_MOVE':
     case 'AI_MOVE':
-      return { ...state, board: movePiece(state.board, action.from, action.to) };
+      return {
+        ...state,
+        board: movePiece(state.board, action.from, action.to),
+        lastMove: { from: action.from, to: action.to },
+      };
     case 'SET_BOARD':
-      return { ...state, board: action.board };
+      return { ...state, board: action.board, lastMove: null };
     case 'FLIP_ORIENTATION':
       return {
         ...state,
@@ -71,6 +86,7 @@ export function BoardProvider({ children }: { children: ReactNode }): JSX.Elemen
   const [state, dispatch] = useReducer(reducer, {
     board: initialBoard(),
     orientation: 'white' as Orientation,
+    lastMove: null,
   });
 
   const actions = useMemo<BoardActions>(

@@ -18,12 +18,14 @@ class MockWorker {
   constructor() {
     MockWorker.instances.push(this);
   }
-  postMessage(msg: WorkerRequest) {
-    this.lastMessage = msg;
-    if (msg.type === 'GET_LEGAL_MOVES') {
-      this.onmessage?.({ data: { type: 'LEGAL_MOVES', square: msg.square, moves: ['e3', 'e4'] } });
+    postMessage(msg: WorkerRequest) {
+      this.lastMessage = msg;
+      if (msg.type === 'GET_LEGAL_MOVES') {
+        this.onmessage?.({
+          data: { type: 'ERROR', message: '', legalMoves: ['e3', 'e4'] },
+        });
+      }
     }
-  }
   terminate() {}
 }
 

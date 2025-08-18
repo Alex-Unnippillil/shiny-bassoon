@@ -57,7 +57,7 @@ function boardFromGame(game: Chess): Board {
 }
 
 export default function App(): JSX.Element {
-  const { board, orientation } = useBoardState();
+  const { board, orientation, lastMove } = useBoardState();
   const { playerMove, aiMove, flipOrientation, setBoard } = useBoardActions();
   const { fen, setFen, history, addMove, exportPGN, importFEN } = useGameStore();
   const [selected, setSelected] = useState<string | null>(null);
@@ -142,13 +142,16 @@ export default function App(): JSX.Element {
     if (selected) {
       if (square === selected) {
         setSelected(null);
-
-        workerRef.current?.postMessage({
-          type: 'GET_LEGAL_MOVES',
-          square,
-        } as WorkerRequest);
+        setLegalMoves([]);
       } else {
-
+        if (legalMoves.includes(square)) {
+          handleMove(selected, square);
+        }
+        setSelected(null);
+        setLegalMoves([]);
+      }
+    } else {
+      setSelected(square);
       workerRef.current?.postMessage({
         type: 'GET_LEGAL_MOVES',
         square,
@@ -258,12 +261,24 @@ export default function App(): JSX.Element {
           const piece = board[sq];
           const isDark = Math.floor(idx / 8) % 2 === idx % 2;
           const isLegal = legalMoves.includes(sq);
+          const isFrom = lastMove?.from === sq;
+          const isTo = lastMove?.to === sq;
+          const isChecked = (() => {
+            if (!gameRef.current.inCheck()) return false;
+            const turn = gameRef.current.turn();
+            const kingSquare = Object.entries(board).find(
+              ([, p]) => p.type === 'K' && p.color === turn,
+            )?.[0];
+            return kingSquare === sq;
+          })();
           return (
             <Box
               key={sq}
               component="button"
               data-square={sq}
               data-legal={isLegal ? 'true' : undefined}
+              data-last-move={isFrom ? 'from' : isTo ? 'to' : undefined}
+              data-in-check={isChecked ? 'true' : undefined}
               role="gridcell"
               ref={(el) => {
                 squareRefs.current[sq] = el as HTMLButtonElement | null;
@@ -281,7 +296,12 @@ export default function App(): JSX.Element {
               onClick={() => handleSquareClick(sq)}
               onKeyDown={(e) => handleKeyDown(sq, e)}
               sx={{
-                backgroundColor: isDark ? '#769656' : '#eeeed2',
+                backgroundColor:
+                  isFrom || isTo
+                    ? 'yellow'
+                    : isDark
+                      ? '#769656'
+                      : '#eeeed2',
                 color: '#000',
                 display: 'flex',
                 alignItems: 'center',
@@ -289,7 +309,7 @@ export default function App(): JSX.Element {
                 border: 'none',
                 padding: 0,
                 fontSize: 32,
-
+                outline: isChecked ? '3px solid red' : undefined,
               }}
             >
               {piece && <span className="piece">{pieceSymbol(piece)}</span>}
