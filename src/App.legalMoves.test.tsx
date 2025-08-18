@@ -21,7 +21,14 @@ class MockWorker {
   postMessage(msg: WorkerRequest) {
     this.lastMessage = msg;
     if (msg.type === 'GET_LEGAL_MOVES') {
-      this.onmessage?.({ data: { type: 'LEGAL_MOVES', square: msg.square, moves: ['e3', 'e4'] } });
+      this.onmessage?.({
+        data: {
+          type: 'LEGAL_MOVES',
+          square: msg.square,
+          moves: ['e3', 'e4'],
+          difficulty: msg.difficulty,
+        },
+      });
     }
   }
   terminate() {}
@@ -45,7 +52,11 @@ test('requests and highlights legal moves', async () => {
 
   const e2 = container.querySelector('[data-square="e2"]') as HTMLElement;
   fireEvent.click(e2);
-  expect(worker.lastMessage).toEqual({ type: 'GET_LEGAL_MOVES', square: 'e2' });
+  expect(worker.lastMessage).toEqual({
+    type: 'GET_LEGAL_MOVES',
+    square: 'e2',
+    difficulty: 1,
+  });
 
   const e3 = container.querySelector('[data-square="e3"]') as HTMLElement;
   await waitFor(() => expect(e3.getAttribute('data-legal')).toBe('true'));

@@ -12,14 +12,20 @@ export interface Move {
   to: string;
 }
 
+export type Difficulty = 1 | 2 | 3;
+
 export type WorkerRequest =
-  | ({ type: 'PLAYER_MOVE' } & Move)
-  | { type: 'GET_LEGAL_MOVES'; square: string }
-  | { type: 'INIT'; fen?: string };
+  (
+    | ({ type: 'PLAYER_MOVE' } & Move)
+    | { type: 'GET_LEGAL_MOVES'; square: string }
+    | { type: 'INIT'; fen?: string }
+  ) & { difficulty?: Difficulty };
 
 export type WorkerResponse =
-  | ({ type: 'AI_MOVE' } & Move)
-  | { type: 'LEGAL_MOVES'; square: string; moves: string[] }
-  | { type: 'CHECKMATE'; winner: Color }
-  | { type: 'STALEMATE' }
-  | { type: 'ERROR'; message: string; legalMoves?: string[] };
+  (
+    | ({ type: 'AI_MOVE' } & Move)
+    | { type: 'LEGAL_MOVES'; square: string; moves: string[] }
+    | { type: 'CHECKMATE'; winner: Color }
+    | { type: 'STALEMATE' }
+    | { type: 'ERROR'; message: string; legalMoves?: string[] }
+  ) & { difficulty?: Difficulty };

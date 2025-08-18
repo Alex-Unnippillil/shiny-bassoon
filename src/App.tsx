@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { Box, Button, TextField } from '@mui/material';
+import { Box, Button, TextField, MenuItem } from '@mui/material';
 import { Chess } from 'chess.js';
 import { useBoardState, useBoardActions } from './boardStore';
 import useGameStore from './useGameStore';
@@ -65,6 +65,7 @@ export default function App(): JSX.Element {
   const [legalMoves, setLegalMoves] = useState<string[]>([]);
   const [announcement, setAnnouncement] = useState('');
   const [fenInput, setFenInput] = useState('');
+  const [difficulty, setDifficulty] = useState<1 | 2 | 3>(1);
   const squareRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const workerRef = useRef<Worker | null>(null);
   const gameRef = useRef(new Chess(fen || INITIAL_FEN));
@@ -76,6 +77,9 @@ export default function App(): JSX.Element {
     workerRef.current.onmessage = (e: MessageEvent<WorkerResponse>) => {
       const data = e.data;
       switch (data.type) {
+        case 'LEGAL_MOVES':
+          setLegalMoves(data.moves);
+          break;
         case 'AI_MOVE':
           aiMove(data.from, data.to);
           gameRef.current.move({ from: data.from, to: data.to, promotion: 'q' });
@@ -107,6 +111,7 @@ export default function App(): JSX.Element {
     workerRef.current.postMessage({
       type: 'INIT',
       fen: fen || INITIAL_FEN,
+      difficulty,
     } as WorkerRequest);
   }
 
@@ -131,7 +136,12 @@ export default function App(): JSX.Element {
     const move = gameRef.current.move({ from, to, promotion: 'q' });
     if (!move) return;
     playerMove(from, to);
-    workerRef.current?.postMessage({ type: 'PLAYER_MOVE', from, to } as WorkerRequest);
+    workerRef.current?.postMessage({
+      type: 'PLAYER_MOVE',
+      from,
+      to,
+      difficulty,
+    } as WorkerRequest);
     addMove(to);
     setFen(gameRef.current.fen());
     setAnnouncement(`Player moved ${from} to ${to}`);
@@ -142,17 +152,26 @@ export default function App(): JSX.Element {
     if (selected) {
       if (square === selected) {
         setSelected(null);
-
         workerRef.current?.postMessage({
           type: 'GET_LEGAL_MOVES',
           square,
+          difficulty,
         } as WorkerRequest);
       } else {
-
-      workerRef.current?.postMessage({
-        type: 'GET_LEGAL_MOVES',
-        square,
-      } as WorkerRequest);
+        handleMove(selected, square);
+        setSelected(null);
+        setLegalMoves([]);
+      }
+    } else {
+      const piece = board[square];
+      if (piece && piece.color === (orientation === 'white' ? 'w' : 'b')) {
+        setSelected(square);
+        workerRef.current?.postMessage({
+          type: 'GET_LEGAL_MOVES',
+          square,
+          difficulty,
+        } as WorkerRequest);
+      }
     }
   };
 
@@ -204,7 +223,7 @@ export default function App(): JSX.Element {
     const newHistory = history.slice(0, -2);
     importFEN(g.fen());
     newHistory.forEach((m) => addMove(m));
-    workerRef.current?.postMessage({ type: 'INIT', fen: g.fen() } as WorkerRequest);
+    workerRef.current?.postMessage({ type: 'INIT', fen: g.fen(), difficulty } as WorkerRequest);
     setAnnouncement('Undo last move');
   };
 
@@ -213,7 +232,7 @@ export default function App(): JSX.Element {
     gameRef.current = g;
     setBoard(boardFromGame(g));
     importFEN(INITIAL_FEN);
-    workerRef.current?.postMessage({ type: 'INIT', fen: INITIAL_FEN } as WorkerRequest);
+    workerRef.current?.postMessage({ type: 'INIT', fen: INITIAL_FEN, difficulty } as WorkerRequest);
     setAnnouncement('Game reset');
   };
 
@@ -234,7 +253,7 @@ export default function App(): JSX.Element {
       gameRef.current = g;
       setBoard(boardFromGame(g));
       importFEN(fenInput);
-      workerRef.current?.postMessage({ type: 'INIT', fen: fenInput } as WorkerRequest);
+      workerRef.current?.postMessage({ type: 'INIT', fen: fenInput, difficulty } as WorkerRequest);
       setAnnouncement('FEN imported');
     } catch {
       setAnnouncement('Invalid FEN');
@@ -243,6 +262,25 @@ export default function App(): JSX.Element {
 
   return (
     <Box display="flex" flexDirection="column" alignItems="center" gap={2}>
+      <TextField
+        select
+        label="Difficulty"
+        value={difficulty}
+        onChange={(e) => {
+          const d = Number(e.target.value) as 1 | 2 | 3;
+          setDifficulty(d);
+          workerRef.current?.postMessage({
+            type: 'INIT',
+            fen: gameRef.current.fen(),
+            difficulty: d,
+          } as WorkerRequest);
+        }}
+        sx={{ minWidth: 120 }}
+      >
+        <MenuItem value={1}>1</MenuItem>
+        <MenuItem value={2}>2</MenuItem>
+        <MenuItem value={3}>3</MenuItem>
+      </TextField>
       <Box
         display="grid"
         gridTemplateColumns="repeat(8, 1fr)"
