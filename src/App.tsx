@@ -79,7 +79,7 @@ export default function App(): JSX.Element {
   const gameRef = useRef(new Chess(fen || INITIAL_FEN));
   const { white, black, start, pause, reset } = useClock(300);
 
-  const [, setGameOver] = useState(false);
+  const [gameOver, setGameOver] = useState(false);
 
 
   useEffect(() => {
@@ -113,9 +113,13 @@ export default function App(): JSX.Element {
           break;
         case 'CHECKMATE':
           setAnnouncement(`Checkmate: ${data.winner === 'w' ? 'White' : 'Black'} wins`);
+          setGameOver(true);
+          pause();
           break;
         case 'STALEMATE':
           setAnnouncement('Stalemate');
+          setGameOver(true);
+          pause();
           break;
         case 'LEGAL_MOVES':
           setLegalMoves(data.moves);
@@ -157,6 +161,7 @@ export default function App(): JSX.Element {
   }, [orientation]);
 
   const handleMove = (from: string, to: string) => {
+    if (gameOver) return;
     if (!legalMoves.includes(to)) return;
     const move = gameRef.current.move({ from, to, promotion: 'q' });
     if (!move) return;
@@ -170,6 +175,7 @@ export default function App(): JSX.Element {
   };
 
   const handleSquareClick = (square: string) => {
+    if (gameOver) return;
     if (!selected) {
 
       const piece = board[square];
@@ -195,6 +201,7 @@ export default function App(): JSX.Element {
     square: string,
     e: React.KeyboardEvent<HTMLButtonElement>,
   ): void => {
+    if (gameOver) return;
     const index = orderedSquares.indexOf(square);
     let target: string | undefined;
     switch (e.key) {
@@ -242,6 +249,7 @@ export default function App(): JSX.Element {
     newHistory.forEach((m) => addMove(m));
     workerRef.current?.postMessage({ type: 'INIT', fen: g.fen() } as WorkerRequest);
     setAnnouncement('Undo last move');
+    setGameOver(false);
   };
 
   const handleReset = () => {
@@ -252,6 +260,7 @@ export default function App(): JSX.Element {
     workerRef.current?.postMessage({ type: 'INIT', fen: INITIAL_FEN } as WorkerRequest);
     setAnnouncement('Game reset');
     reset();
+    setGameOver(false);
     start('white');
   };
 
@@ -274,6 +283,7 @@ export default function App(): JSX.Element {
       importFEN(fenInput);
       workerRef.current?.postMessage({ type: 'INIT', fen: fenInput } as WorkerRequest);
       setAnnouncement('FEN imported');
+      setGameOver(false);
     } catch {
       setAnnouncement('Invalid FEN');
     }
