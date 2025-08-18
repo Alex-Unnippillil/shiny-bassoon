@@ -21,13 +21,13 @@ self.onmessage = (e: MessageEvent<WorkerRequest>) => {
         send({ type: 'STALEMATE' });
       }
       break;
-    case 'GET_LEGAL_MOVES':
-      send({
-        type: 'LEGAL_MOVES',
-        square: data.square,
-        moves: game.moves({ square: data.square, verbose: false }) as string[],
-      });
+    case 'GET_LEGAL_MOVES': {
+      const moves = game
+        .moves({ square: data.square, verbose: true })
+        .map(m => m.to);
+      send({ type: 'LEGAL_MOVES', square: data.square, moves });
       break;
+    }
     case 'PLAYER_MOVE': {
       let move = null;
       try {
