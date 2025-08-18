@@ -197,8 +197,9 @@ export default function App(): JSX.Element {
 
   const handleUndo = () => {
     const g = gameRef.current;
-    if (!g.undo()) return;
-    g.undo();
+    if (g.history().length < 2) return; // ensure both player & AI moves exist
+    g.undo(); // undo AI move
+    g.undo(); // undo player move
     const newBoard = boardFromGame(g);
     setBoard(newBoard);
     const newHistory = history.slice(0, -2);
