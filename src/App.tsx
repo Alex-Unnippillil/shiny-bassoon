@@ -5,6 +5,7 @@ import { useBoardState, useBoardActions } from './boardStore';
 import useGameStore from './useGameStore';
 import type { Piece, WorkerRequest, WorkerResponse, Board } from './types';
 import { INITIAL_FEN } from './constants';
+import ChooseSideDialog from './ChooseSideDialog';
 
 const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
 const ranks = [1, 2, 3, 4, 5, 6, 7, 8];
@@ -65,6 +66,7 @@ export default function App(): JSX.Element {
   const [legalMoves, setLegalMoves] = useState<string[]>([]);
   const [announcement, setAnnouncement] = useState('');
   const [fenInput, setFenInput] = useState('');
+  const [chooseOpen, setChooseOpen] = useState(true);
   const squareRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const workerRef = useRef<Worker | null>(null);
   const gameRef = useRef(new Chess(fen || INITIAL_FEN));
@@ -82,6 +84,9 @@ export default function App(): JSX.Element {
           addMove(data.to);
           setFen(gameRef.current.fen());
           setAnnouncement(`AI moved ${data.from} to ${data.to}`);
+          break;
+        case 'LEGAL_MOVES':
+          setLegalMoves(data.moves);
           break;
         case 'CHECKMATE':
           setAnnouncement(`Checkmate: ${data.winner === 'w' ? 'White' : 'Black'} wins`);
@@ -142,13 +147,17 @@ export default function App(): JSX.Element {
     if (selected) {
       if (square === selected) {
         setSelected(null);
-
         workerRef.current?.postMessage({
           type: 'GET_LEGAL_MOVES',
           square,
         } as WorkerRequest);
       } else {
-
+        handleMove(selected, square);
+        setSelected(null);
+        setLegalMoves([]);
+      }
+    } else {
+      setSelected(square);
       workerRef.current?.postMessage({
         type: 'GET_LEGAL_MOVES',
         square,
@@ -237,12 +246,26 @@ export default function App(): JSX.Element {
       workerRef.current?.postMessage({ type: 'INIT', fen: fenInput } as WorkerRequest);
       setAnnouncement('FEN imported');
     } catch {
-      setAnnouncement('Invalid FEN');
+    setAnnouncement('Invalid FEN');
+    }
+  };
+
+  const handleChooseSide = (side: 'white' | 'black') => {
+    setChooseOpen(false);
+    if (side === 'black') {
+      flipOrientation();
+      const g = new Chess(INITIAL_FEN);
+      gameRef.current = g;
+      setBoard(boardFromGame(g));
+      importFEN(INITIAL_FEN);
+      workerRef.current?.postMessage({ type: 'INIT', fen: INITIAL_FEN } as WorkerRequest);
+      workerRef.current?.postMessage({ type: 'REQUEST_AI_MOVE' } as WorkerRequest);
     }
   };
 
   return (
     <Box display="flex" flexDirection="column" alignItems="center" gap={2}>
+      <ChooseSideDialog open={chooseOpen} onChoose={handleChooseSide} />
       <Box
         display="grid"
         gridTemplateColumns="repeat(8, 1fr)"

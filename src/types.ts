@@ -15,7 +15,8 @@ export interface Move {
 export type WorkerRequest =
   | ({ type: 'PLAYER_MOVE' } & Move)
   | { type: 'GET_LEGAL_MOVES'; square: string }
-  | { type: 'INIT'; fen?: string };
+  | { type: 'INIT'; fen?: string }
+  | { type: 'REQUEST_AI_MOVE' };
 
 export type WorkerResponse =
   | ({ type: 'AI_MOVE' } & Move)

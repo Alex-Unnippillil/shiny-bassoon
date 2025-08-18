@@ -72,6 +72,28 @@ self.onmessage = (e: MessageEvent<WorkerRequest>) => {
       }
       break;
     }
+    case 'REQUEST_AI_MOVE': {
+      const aiMoves = game.moves({ verbose: true });
+      const ai =
+        aiMoves.find(
+          m =>
+            m.piece === 'p' &&
+            Math.abs(parseInt(m.from[1], 10) - parseInt(m.to[1], 10)) === 2,
+        ) || aiMoves.find(m => m.piece === 'p') || aiMoves[0];
+      if (!ai) {
+        if (game.isStalemate()) send({ type: 'STALEMATE' });
+        else send({ type: 'ERROR', message: 'No legal moves' });
+        return;
+      }
+      game.move(ai);
+      send({ type: 'AI_MOVE', from: ai.from, to: ai.to });
+      if (game.isCheckmate()) {
+        send({ type: 'CHECKMATE', winner: ai.color });
+      } else if (game.isStalemate()) {
+        send({ type: 'STALEMATE' });
+      }
+      break;
+    }
     default:
       break;
   }
