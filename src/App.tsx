@@ -286,6 +286,8 @@ export default function App(): JSX.Element {
       setBoard(boardFromGame(g));
       importFEN(fenInput);
       workerRef.current?.postMessage({ type: 'INIT', fen: fenInput } as WorkerRequest);
+      setSelected(null);
+      setLegalMoves([]);
       setAnnouncement('FEN imported');
       setGameOver(false);
     } catch {
