@@ -78,7 +78,7 @@ export default function App(): JSX.Element {
   const workerRef = useRef<Worker | null>(null);
   const gameRef = useRef(new Chess(fen || INITIAL_FEN));
   const { white, black, start, pause, reset } = useClock(300);
-  const [gameOver, setGameOver] = useState(false);
+  const [, setGameOver] = useState(false);
 
   useEffect(() => {
     start('white');
@@ -117,7 +117,9 @@ export default function App(): JSX.Element {
         case 'STALEMATE':
           setAnnouncement('Stalemate');
           break;
-
+        case 'LEGAL_MOVES':
+          setLegalMoves(data.moves);
+          break;
         case 'ERROR':
           setAnnouncement(data.message);
           if (data.legalMoves) {
@@ -168,7 +170,9 @@ export default function App(): JSX.Element {
   };
 
   const handleSquareClick = (square: string) => {
-
+    if (!selected) {
+      const piece = board[square];
+      if (!piece || piece.color !== 'w') return;
       setSelected(square);
       workerRef.current?.postMessage({
         type: 'GET_LEGAL_MOVES',
