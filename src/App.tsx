@@ -248,6 +248,8 @@ export default function App(): JSX.Element {
     importFEN(g.fen());
     newHistory.forEach((m) => addMove(m));
     workerRef.current?.postMessage({ type: 'INIT', fen: g.fen() } as WorkerRequest);
+    setSelected(null);
+    setLegalMoves([]);
     setAnnouncement('Undo last move');
     setGameOver(false);
   };
@@ -258,6 +260,8 @@ export default function App(): JSX.Element {
     setBoard(boardFromGame(g));
     importFEN(INITIAL_FEN);
     workerRef.current?.postMessage({ type: 'INIT', fen: INITIAL_FEN } as WorkerRequest);
+    setSelected(null);
+    setLegalMoves([]);
     setAnnouncement('Game reset');
     reset();
     setGameOver(false);
