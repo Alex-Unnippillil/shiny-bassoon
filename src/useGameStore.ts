@@ -57,7 +57,9 @@ export default function useGameStore(): GameStore {
 
   // export the move history as a simple PGN string
   const exportPGN = useCallback(() => {
-    return history.join(' ');
+    return history
+      .map((move, idx) => (idx % 2 === 0 ? `${Math.floor(idx / 2) + 1}. ${move}` : move))
+      .join(' ');
   }, [history]);
 
   // import a FEN position and reset move history

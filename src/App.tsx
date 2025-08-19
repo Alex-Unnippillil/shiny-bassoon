@@ -106,7 +106,10 @@ export default function App(): JSX.Element {
         case 'AI_MOVE':
           aiMove(data.from, data.to);
           gameRef.current.move({ from: data.from, to: data.to, promotion: 'q' });
-          addMove(data.to);
+          const aiSan = gameRef.current
+            .history({ verbose: true })
+            .slice(-1)[0].san;
+          addMove(aiSan);
           setFen(gameRef.current.fen());
           setAnnouncement(`AI moved ${data.from} to ${data.to}`);
           start('white');
@@ -167,7 +170,10 @@ export default function App(): JSX.Element {
     if (!move) return;
     playerMove(from, to);
     workerRef.current?.postMessage({ type: 'PLAYER_MOVE', from, to } as WorkerRequest);
-    addMove(to);
+    const san = gameRef.current
+      .history({ verbose: true })
+      .slice(-1)[0].san;
+    addMove(san);
     setFen(gameRef.current.fen());
     setAnnouncement(`Player moved ${from} to ${to}`);
     setLegalMoves([]);
