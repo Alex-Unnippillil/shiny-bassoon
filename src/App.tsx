@@ -320,6 +320,8 @@ export default function App(): JSX.Element {
     setLegalMoves([]);
     setAnnouncement('Undo last move');
     setGameOver(false);
+    pause();
+    start('white');
   };
 
   const handleReset = () => {
