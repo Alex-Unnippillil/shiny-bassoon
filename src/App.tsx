@@ -68,7 +68,8 @@ function formatTime(seconds: number): string {
 export default function App(): JSX.Element {
   const { board, orientation } = useBoardState();
   const { playerMove, aiMove, flipOrientation, setBoard } = useBoardActions();
-  const { fen, setFen, history, addMove, exportPGN, importFEN } = useGameStore();
+  const { fen, setFen, history, addMove, exportPGN, importFEN } =
+    useGameStore();
   const [selected, setSelected] = useState<string | null>(null);
 
   const [legalMoves, setLegalMoves] = useState<string[]>([]);
@@ -81,6 +82,7 @@ export default function App(): JSX.Element {
 
   const [gameOver, setGameOver] = useState(false);
 
+=======
   const handleWorkerMessage = (e: MessageEvent<WorkerResponse>): void => {
     const data = e.data;
     switch (data.type) {
@@ -146,6 +148,13 @@ export default function App(): JSX.Element {
       switch (data.type) {
         case 'AI_MOVE':
           aiMove(data.from, data.to);
+          gameRef.current.move({
+            from: data.from,
+            to: data.to,
+            promotion: 'q',
+          });
+          addMove(data.to);
+=======
           gameRef.current.move({ from: data.from, to: data.to, promotion: 'q' });
           const aiSan = gameRef.current
             .history({ verbose: true })
@@ -156,7 +165,9 @@ export default function App(): JSX.Element {
           start('white');
           break;
         case 'CHECKMATE':
-          setAnnouncement(`Checkmate: ${data.winner === 'w' ? 'White' : 'Black'} wins`);
+          setAnnouncement(
+            `Checkmate: ${data.winner === 'w' ? 'White' : 'Black'} wins`,
+          );
           setGameOver(true);
           pause();
           break;
@@ -171,7 +182,7 @@ export default function App(): JSX.Element {
         case 'ERROR':
           setAnnouncement(data.message);
           if (data.legalMoves) {
-            const moves = data.legalMoves.map(m => {
+            const moves = data.legalMoves.map((m) => {
               const match = m.match(/[a-h][1-8]/g);
               return match ? match[match.length - 1] : m;
             });
@@ -208,6 +219,13 @@ export default function App(): JSX.Element {
     const move = gameRef.current.move({ from, to, promotion: 'q' });
     if (!move) return;
     playerMove(from, to);
+    workerRef.current?.postMessage({
+      type: 'PLAYER_MOVE',
+      from,
+      to,
+    } as WorkerRequest);
+    addMove(to);
+=======
     workerRef.current?.postMessage({ type: 'PLAYER_MOVE', from, to } as WorkerRequest);
     const san = gameRef.current
       .history({ verbose: true })
@@ -222,12 +240,14 @@ export default function App(): JSX.Element {
   const handleSquareClick = (square: string) => {
     if (gameOver) return;
     if (!selected) {
-
       const piece = board[square];
       if (!piece || piece.color !== 'w') return;
 
       setSelected(square);
-      workerRef.current?.postMessage({ type: 'GET_LEGAL_MOVES', square } as WorkerRequest);
+      workerRef.current?.postMessage({
+        type: 'GET_LEGAL_MOVES',
+        square,
+      } as WorkerRequest);
       return;
     }
 
@@ -292,7 +312,10 @@ export default function App(): JSX.Element {
     const newHistory = history.slice(0, -2);
     importFEN(g.fen());
     newHistory.forEach((m) => addMove(m));
-    workerRef.current?.postMessage({ type: 'INIT', fen: g.fen() } as WorkerRequest);
+    workerRef.current?.postMessage({
+      type: 'INIT',
+      fen: g.fen(),
+    } as WorkerRequest);
     setSelected(null);
     setLegalMoves([]);
     setAnnouncement('Undo last move');
@@ -304,7 +327,10 @@ export default function App(): JSX.Element {
     gameRef.current = g;
     setBoard(boardFromGame(g));
     importFEN(INITIAL_FEN);
-    workerRef.current?.postMessage({ type: 'INIT', fen: INITIAL_FEN } as WorkerRequest);
+    workerRef.current?.postMessage({
+      type: 'INIT',
+      fen: INITIAL_FEN,
+    } as WorkerRequest);
     setSelected(null);
     setLegalMoves([]);
     setAnnouncement('Game reset');
@@ -330,9 +356,17 @@ export default function App(): JSX.Element {
       gameRef.current = g;
       setBoard(boardFromGame(g));
       importFEN(fenInput);
-      workerRef.current?.postMessage({ type: 'INIT', fen: fenInput } as WorkerRequest);
+      workerRef.current?.postMessage({
+        type: 'INIT',
+        fen: fenInput,
+      } as WorkerRequest);
       setAnnouncement('FEN imported');
       setGameOver(false);
+      reset();
+      start('white');
+      setFenInput('');
+      setSelected(null);
+      setLegalMoves([]);
     } catch {
       setAnnouncement('Invalid FEN');
     }
@@ -370,11 +404,10 @@ export default function App(): JSX.Element {
               tabIndex={0}
               aria-label={`square ${sq}${
                 piece
-                  ?
-                      ' with ' +
-                      (piece.color === 'w' ? 'white' : 'black') +
-                      ' ' +
-                      pieceNames[piece.type]
+                  ? ' with ' +
+                    (piece.color === 'w' ? 'white' : 'black') +
+                    ' ' +
+                    pieceNames[piece.type]
                   : ''
               }`}
               onClick={() => handleSquareClick(sq)}
@@ -388,6 +421,7 @@ export default function App(): JSX.Element {
                 border: 'none',
                 padding: 0,
                 fontSize: 32,
+=======
                 '&[data-selected="true"]': {
                   outline: '2px solid #f00',
                 },
@@ -446,4 +480,3 @@ export default function App(): JSX.Element {
     </Box>
   );
 }
-
