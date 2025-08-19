@@ -317,6 +317,7 @@ export default function App(): JSX.Element {
               component="button"
               data-square={sq}
               data-legal={isLegal ? 'true' : undefined}
+              data-selected={selected === sq ? 'true' : undefined}
               role="gridcell"
               ref={(el) => {
                 squareRefs.current[sq] = el as HTMLButtonElement | null;
@@ -342,7 +343,9 @@ export default function App(): JSX.Element {
                 border: 'none',
                 padding: 0,
                 fontSize: 32,
-
+                '&[data-selected="true"]': {
+                  outline: '2px solid #f00',
+                },
               }}
             >
               {piece && <span className="piece">{pieceSymbol(piece)}</span>}
