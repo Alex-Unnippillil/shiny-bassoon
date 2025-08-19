@@ -81,6 +81,44 @@ export default function App(): JSX.Element {
 
   const [gameOver, setGameOver] = useState(false);
 
+  const handleWorkerMessage = (e: MessageEvent<WorkerResponse>): void => {
+    const data = e.data;
+    switch (data.type) {
+      case 'AI_MOVE':
+        aiMove(data.from, data.to);
+        gameRef.current.move({ from: data.from, to: data.to, promotion: 'q' });
+        addMove(data.to);
+        setFen(gameRef.current.fen());
+        setAnnouncement(`AI moved ${data.from} to ${data.to}`);
+        start('white');
+        break;
+      case 'CHECKMATE':
+        setAnnouncement(`Checkmate: ${data.winner === 'w' ? 'White' : 'Black'} wins`);
+        setGameOver(true);
+        pause();
+        break;
+      case 'STALEMATE':
+        setAnnouncement('Stalemate');
+        setGameOver(true);
+        pause();
+        break;
+      case 'LEGAL_MOVES':
+        setLegalMoves(data.moves);
+        break;
+      case 'ERROR':
+        setAnnouncement(data.message);
+        if (data.legalMoves) {
+          const moves = data.legalMoves.map(m => {
+            const match = m.match(/[a-h][1-8]/g);
+            return match ? match[match.length - 1] : m;
+          });
+          setLegalMoves(moves);
+        }
+        break;
+      default:
+        break;
+    }
+  };
 
   useEffect(() => {
     start('white');
@@ -96,10 +134,13 @@ export default function App(): JSX.Element {
     }
   }, [white, black, pause]);
 
-  if (!workerRef.current) {
-    workerRef.current = new Worker(new URL('./aiWorker.ts', import.meta.url), {
+  useEffect(() => {
+    const worker = new Worker(new URL('./aiWorker.ts', import.meta.url), {
       type: 'module',
     });
+    worker.onmessage = handleWorkerMessage; // extract current switch logic into handleWorkerMessage
+    worker.postMessage({
+=======
     workerRef.current.onmessage = (e: MessageEvent<WorkerResponse>) => {
       const data = e.data;
       switch (data.type) {
@@ -145,10 +186,8 @@ export default function App(): JSX.Element {
       type: 'INIT',
       fen: fen || INITIAL_FEN,
     } as WorkerRequest);
-  }
-
-  useEffect(() => {
-    return () => workerRef.current?.terminate();
+    workerRef.current = worker;
+    return () => worker.terminate();
   }, []);
 
   const orderedSquares = useMemo(() => {
