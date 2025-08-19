@@ -334,6 +334,7 @@ export default function App(): JSX.Element {
               onClick={() => handleSquareClick(sq)}
               onKeyDown={(e) => handleKeyDown(sq, e)}
               sx={{
+                position: 'relative',
                 backgroundColor: isDark ? '#769656' : '#eeeed2',
                 color: '#000',
                 display: 'flex',
