@@ -232,9 +232,10 @@ export default function App(): JSX.Element {
   };
 
   const handleFlip = () => {
-    const newOrientation = orientation === 'white' ? 'black' : 'white';
     flipOrientation();
-    setAnnouncement(`Board orientation is now ${newOrientation} at bottom`);
+    setSelected(null);
+    setLegalMoves([]);
+    setAnnouncement('Board orientation changed; selection cleared');
   };
 
   const handleUndo = () => {

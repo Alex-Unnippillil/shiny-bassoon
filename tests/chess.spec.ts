@@ -26,7 +26,7 @@ test('board has grid roles and announces moves and orientation', async ({ page }
   await expect.poll(async () => await announcer.textContent()).toContain('moved');
 
   await page.getByRole('button', { name: 'Toggle board orientation' }).click();
-  await expect(announcer).toHaveText(/Board orientation is now (white|black) at bottom/);
+  await expect(announcer).toHaveText('Board orientation changed; selection cleared');
 });
 
 test('announces illegal move', async ({ page }) => {
