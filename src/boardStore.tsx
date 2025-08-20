@@ -30,10 +30,8 @@ function initialBoard(): Board {
 
 function movePiece(board: Board, from: string, to: string): Board {
   const moving = board[from];
-  if (!moving) {
-    return board;
-  }
-  const newBoard: Board = { ...board };
+  if (!moving) return board; // ignore moves from empty squares
+  const newBoard = { ...board };
   newBoard[to] = moving;
   delete newBoard[from];
   return newBoard;
